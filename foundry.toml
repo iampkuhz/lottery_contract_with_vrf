@@ -7,5 +7,9 @@ cache_path = 'cache'
 solc_version = '0.8.24'
 optimizer = true
 optimizer_runs = 200
+remappings = [
+    "forge-std/=lib/forge-std/src/",
+    "openzeppelin-contracts/=lib/openzeppelin-contracts/contracts/"
+]
 
 # 中文注释：这里可以按需配置 RPC、Etherscan 等

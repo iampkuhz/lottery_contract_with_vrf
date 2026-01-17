@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import "./IRedPacketVRF.sol";
 import "./interfaces/VRFCoordinatorV2Interface.sol";
-import "openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
+import "openzeppelin-contracts/utils/structs/EnumerableSet.sol";
 
 /// @title 红包合约（基于 Chainlink VRF 随机数）
 /// @notice 任何人可充值，管理员在指定时间点请求随机数并分配红包

@@ -34,6 +34,12 @@ foundryup
 forge test -vvv
 ```
 
+### 依赖安装
+```bash
+forge install foundry-rs/forge-std
+forge install OpenZeppelin/openzeppelin-contracts
+```
+
 ## 测试流程说明（需与测试同步更新）
 > 说明：以下流程以 `test/RedPacketVRF.t.sol` 为准，后续修改测试逻辑时请同步更新本节。
 
@@ -56,6 +62,13 @@ forge test -vvv
 4. `requestDraw()`：由 `admin` 发起抽奖，返回 `requestId`。
 5. `fulfillRandomWords(requestId, address(redPacket), 999)`：由 mock 回调 VRF。
 6. 断言：`pendingClaims(bad) > 0`，`user2.balance > 0`。
+
+### testRegister200AndDrawWithGasLogs()
+1. 逐条调用 `setParticipantsBatch([id], [addr])` 录入 200 名参与者（单次调用仅 1 个）。
+2. 向合约转账 `2500 ether`（触发 `receive`）。
+3. `requestDraw()`：由 `admin` 发起抽奖，返回 `requestId`。
+4. `fulfillRandomWords(requestId, address(redPacket), 20260117)`：由 mock 回调 VRF。
+5. 打印统计：最大/最小/总和余额；并断言 `max > 100 ether`、`min >= 0.1 ether`、`sum == 2500 ether`。
 
 ## 合约关键接口
 - 参与者批量录入：`setParticipantsBatch(uint256[] employeeIds, address[] participants)`
