@@ -55,13 +55,10 @@ forge install OpenZeppelin/openzeppelin-contracts
 4. `fulfillRandomWords(requestId, address(redPacket), 123456)`：由 mock 回调 VRF。
 5. 断言：`drawInProgress == false`，合约余额为 `0`。
 
-### testPendingClaimWhenTransferFails()
-1. 部署 `RevertingReceiver`（收款会 revert）。
-2. `setParticipantsBatch([201,202], [bad,user2])`：由 `admin` 批量录入参与者。
-3. 向合约转账 `2 ether`（触发 `receive`）。
-4. `requestDraw()`：由 `admin` 发起抽奖，返回 `requestId`。
-5. `fulfillRandomWords(requestId, address(redPacket), 999)`：由 mock 回调 VRF。
-6. 断言：`pendingClaims(bad) > 0`，`user2.balance > 0`。
+### testRejectContractParticipant()
+1. 部署 `RevertingReceiver`（合约地址）。
+2. `setParticipantsBatch([201], [bad])`：由 `admin` 录入。
+3. 断言调用会回退：`ContractNotAllowed`。
 
 ### testRegister200AndDrawWithGasLogs()
 1. 逐条调用 `setParticipantsBatch([id], [addr])` 录入 200 名参与者（单次调用仅 1 个）。

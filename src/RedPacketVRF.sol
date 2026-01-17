@@ -49,6 +49,7 @@ contract RedPacketVRF is IRedPacketVRF {
     uint32 public constant numWords = 1;
     uint16 public constant topPrizeBps = 500;
     uint16 public constant minPoolBps = 80;
+    uint32 public constant weightRange = 1_000_000;
 
     bool public drawInProgress;
     uint256 public lastRequestId;
@@ -179,7 +180,7 @@ contract RedPacketVRF is IRedPacketVRF {
         uint256[] memory weights = new uint256[](count);
         uint256 weightSum = 0;
         for (uint256 i = 0; i < count; i++) {
-            uint256 w = uint256(keccak256(abi.encode(seed, i))) + 1;
+            uint256 w = (uint256(keccak256(abi.encode(seed, i))) % weightRange) + 1;
             weights[i] = w;
             weightSum += w;
         }

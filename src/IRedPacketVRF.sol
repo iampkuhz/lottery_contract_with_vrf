@@ -94,6 +94,8 @@ interface IRedPacketVRF {
     function topPrizeBps() external view returns (uint16);
     // 保障最小奖池比例（bps）
     function minPoolBps() external view returns (uint16);
+    // 权重范围上限
+    function weightRange() external view returns (uint32);
 
     /*
      * ============================================================

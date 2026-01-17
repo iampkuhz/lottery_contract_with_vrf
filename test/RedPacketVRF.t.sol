@@ -29,7 +29,7 @@ contract VRFCoordinatorV2Mock {
         requestId = nextRequestId++;
     }
 
-    function fulfillRandomWords(uint256 requestId, address consumer, uint256 randomWord) external {
+    function fulfillRandomWords(uint256 requestId, address payable consumer, uint256 randomWord) external {
         uint256[] memory words = new uint256[](1);
         words[0] = randomWord;
         RedPacketVRF(consumer).rawFulfillRandomWords(requestId, words);
@@ -87,46 +87,23 @@ contract RedPacketVRFTest is Test {
         assertTrue(redPacket.drawInProgress());
 
         gasBefore = gasleft();
-        coordinator.fulfillRandomWords(requestId, address(redPacket), 123456);
+        coordinator.fulfillRandomWords(requestId, payable(address(redPacket)), 123456);
         emit log_named_uint("gas.fulfillRandomWords()", gasBefore - gasleft());
         assertFalse(redPacket.drawInProgress());
         assertEq(address(redPacket).balance, 0);
     }
 
-    function testPendingClaimWhenTransferFails() public {
-        // 使用会回退的地址测试兜底
+    function testRejectContractParticipant() public {
+        // 合约地址应被拒绝
         RevertingReceiver bad = new RevertingReceiver();
 
-        uint256[] memory ids = new uint256[](2);
-        address[] memory addrs = new address[](2);
+        uint256[] memory ids = new uint256[](1);
+        address[] memory addrs = new address[](1);
         ids[0] = 201; addrs[0] = address(bad);
-        ids[1] = 202; addrs[1] = user2;
 
-        uint256 gasBefore = gasleft();
         vm.prank(admin);
+        vm.expectRevert(bytes("ContractNotAllowed"));
         redPacket.setParticipantsBatch(ids, addrs);
-        emit log_named_uint("gas.setParticipantsBatch(2)", gasBefore - gasleft());
-
-        vm.deal(address(this), 2 ether);
-        gasBefore = gasleft();
-        (bool ok, ) = address(redPacket).call{value: 2 ether}("");
-        emit log_named_uint("gas.deposit(2 ether)", gasBefore - gasleft());
-        assertTrue(ok);
-
-        gasBefore = gasleft();
-        vm.prank(admin);
-        uint256 requestId = redPacket.requestDraw();
-        emit log_named_uint("gas.requestDraw()", gasBefore - gasleft());
-        gasBefore = gasleft();
-        coordinator.fulfillRandomWords(requestId, address(redPacket), 999);
-        emit log_named_uint("gas.fulfillRandomWords()", gasBefore - gasleft());
-
-        // bad 收不到钱，会记录到 pendingClaims
-        uint256 pending = redPacket.pendingClaims(address(bad));
-        assertGt(pending, 0);
-
-        // 好地址应能收到部分余额
-        assertGt(user2.balance, 0);
     }
 
     function testRegister200AndDrawWithGasLogs() public {
@@ -137,10 +114,10 @@ contract RedPacketVRFTest is Test {
             ids[0] = 1000 + i;
             addrs[0] = address(uint160(0x1000 + i));
 
-            uint256 gasBefore = gasleft();
+            uint256 gasBeforeLoop = gasleft();
             vm.prank(admin);
             redPacket.setParticipantsBatch(ids, addrs);
-            emit log_named_uint("gas.setParticipantsBatch(1)", gasBefore - gasleft());
+            emit log_named_uint("gas.setParticipantsBatch(1)", gasBeforeLoop - gasleft());
         }
 
         // 充值 2500 ETH
@@ -157,7 +134,7 @@ contract RedPacketVRFTest is Test {
         emit log_named_uint("gas.requestDraw()", gasBefore - gasleft());
 
         gasBefore = gasleft();
-        coordinator.fulfillRandomWords(requestId, address(redPacket), 20260117);
+        coordinator.fulfillRandomWords(requestId, payable(address(redPacket)), 20260117);
         emit log_named_uint("gas.fulfillRandomWords()", gasBefore - gasleft());
 
         // 打印最大/最小/总和
