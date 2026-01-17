@@ -1,0 +1,14 @@
+# Foundry
+out/
+cache/
+broadcast/
+
+# Dependencies
+lib/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
