@@ -12,3 +12,10 @@ lib/
 
 # OS
 .DS_Store
+
+# Env
+.env
+
+# Data
+data/participants.csv
+data/id_address.test.csv

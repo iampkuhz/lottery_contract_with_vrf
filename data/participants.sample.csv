@@ -1,0 +1,4 @@
+id,user_id,user_name,user_avatar,wallet_address,wallet_type,created_at,updated_at,lottery_entered,lottery_status,lottery_balance,message
+9abc952b-72b5-4789-af6e-6b8959f489ef,353244,QX,//work.-inc.com/photo/353244.80x80.jpg,0x8534df7b3229fe192ce1995f92cd34d7b5103aaa,metamask,2026-01-16T12:47:15.299Z,2026-01-17T06:27:48.238Z,true,FINISHED,1100000000000,
+fde6ab76-ed17-41d8-900f-2eb146382d0d,109887,CY,//work.-inc.com/photo/109887.80x80.jpg,0x68904c38b976DB6b64a13Fe4C33c3Df34E63dF08,generated,2026-01-16T09:47:09.252Z,2026-01-17T05:22:32.372Z,true,ADDRESS_REGISTED,0,
+ce729032-100a-4a46-825a-ac17ff641777,119592,FP,//work.-inc.com/photo/119592.80x80.jpg,0xcbe7c47fc0018F9844cA1B3b0CC625c16230cAe1,generated,2026-01-17T05:35:48.026Z,2026-01-17T05:35:48.026Z,false,ADDRESS_LOADED,0,
