@@ -90,12 +90,10 @@ interface IRedPacketVRF {
     function callbackGasLimit() external view returns (uint32);
     // VRF 随机词数量
     function numWords() external view returns (uint32);
-    // 头奖比例（bps）
-    function topPrizeBps() external view returns (uint16);
-    // 保障最小奖池比例（bps）
-    function minPoolBps() external view returns (uint16);
-    // 权重范围上限
-    function weightRange() external view returns (uint32);
+    // 头奖最小占比（bps）
+    function minTopBps() external view returns (uint16);
+    // 权重取值位数
+    function weightBits() external view returns (uint16);
 
     /*
      * ============================================================
@@ -104,6 +102,8 @@ interface IRedPacketVRF {
      */
     // 是否处于抽奖中
     function drawInProgress() external view returns (bool);
+    // 随机数是否已就绪
+    function randomReady() external view returns (bool);
     // 最近一次请求 ID
     function lastRequestId() external view returns (uint256);
     // 最近一次随机数
@@ -156,6 +156,8 @@ interface IRedPacketVRF {
     function requestDraw() external returns (uint256 requestId);
     // VRF 回调入口
     function rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords) external;
+    // 管理员触发分配
+    function distribute() external;
 
     /*
      * ============================================================

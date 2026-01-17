@@ -19,7 +19,8 @@
 1. 管理员批量录入参与者：`setParticipantsBatch(ids, addrs)`
 2. 任意地址向合约充值 ETH
 3. 管理员发起抽奖：`requestDraw()`
-4. VRF 回调 `rawFulfillRandomWords`，合约分配并发放资金
+4. VRF 回调 `rawFulfillRandomWords` 写入随机数
+5. 管理员触发分配：`distribute()`
 
 ## 使用方式（Foundry）
 
@@ -61,15 +62,17 @@ forge install OpenZeppelin/openzeppelin-contracts
 3. 断言调用会回退：`ContractNotAllowed`。
 
 ### testRegister200AndDrawWithGasLogs()
-1. 逐条调用 `setParticipantsBatch([id], [addr])` 录入 200 名参与者（单次调用仅 1 个）。
-2. 向合约转账 `2500 ether`（触发 `receive`）。
+1. 每 30 人一批次调用 `setParticipantsBatch(ids, addrs)` 录入 200 名参与者。
+2. 向合约转账 `0.1 ether`（触发 `receive`）。
 3. `requestDraw()`：由 `admin` 发起抽奖，返回 `requestId`。
 4. `fulfillRandomWords(requestId, address(redPacket), 20260117)`：由 mock 回调 VRF。
-5. 打印统计：最大/最小/总和余额；并断言 `max > 100 ether`、`min >= 0.1 ether`、`sum == 2500 ether`。
+5. `distribute()`：由 `admin` 触发分配。
+6. 打印统计：最大/最小/总和余额；并断言 `sum == 0.1 ether`。
 
 ## 合约关键接口
 - 参与者批量录入：`setParticipantsBatch(uint256[] employeeIds, address[] participants)`
 - 发起抽奖请求：`requestDraw()`
+- 管理员触发分配：`distribute()`
 - 兜底领取：`claimPending()`
 - 管理员紧急提现：`emergencyWithdraw(address to, uint256 amount)`
 
@@ -77,5 +80,5 @@ forge install OpenZeppelin/openzeppelin-contracts
 - 真实环境需使用 Chainlink VRF V2 的正确 `coordinator/keyHash/subId` 配置。
 - 参与者录入时会拒绝合约地址，仅允许 EOA（`code.length == 0`）。
 - 抽奖前确保合约已充值，且参与者列表不为空。
-- 分配算法为权重随机，最后一人吃剩余，避免精度损失。
+- 分配算法为“随机权重 + 头奖保底”，权重取哈希高位并平方放大，头奖至少占 `minTopBps`。
 - 仅管理员可发起抽奖与配置参数。

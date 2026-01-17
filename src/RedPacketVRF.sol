@@ -47,11 +47,11 @@ contract RedPacketVRF is IRedPacketVRF {
     uint16 public constant requestConfirmations = 3;
     uint32 public constant callbackGasLimit = 1_000_000;
     uint32 public constant numWords = 1;
-    uint16 public constant topPrizeBps = 500;
-    uint16 public constant minPoolBps = 80;
-    uint32 public constant weightRange = 1_000_000;
+    uint16 public constant minTopBps = 500;
+    uint16 public constant weightBits = 16;
 
     bool public drawInProgress;
+    bool public randomReady;
     uint256 public lastRequestId;
     uint256 public lastRandomWord;
 
@@ -158,7 +158,13 @@ contract RedPacketVRF is IRedPacketVRF {
         require(randomWords.length > 0, "NoRandom");
 
         lastRandomWord = randomWords[0];
-        _distribute(randomWords[0]);
+        randomReady = true;
+    }
+
+    function distribute() external onlyAdmin {
+        require(drawInProgress, "NoDraw");
+        require(randomReady, "RandomNotReady");
+        _distribute(lastRandomWord);
     }
 
     function _distribute(uint256 seed) internal {
@@ -167,39 +173,46 @@ contract RedPacketVRF is IRedPacketVRF {
         require(count > 0, "NoParticipants");
         require(total > 0, "NoBalance");
 
-        uint256 topIndex = seed % count;
-        uint256 minPool = (total * minPoolBps) / 10_000;
-        uint256 minPer = minPool / count;
-        uint256 topPrize = (total * topPrizeBps) / 10_000;
-        uint256 available = total - (minPer * count);
-        if (topPrize > available) {
-            topPrize = available;
+        uint256 maxIndex = seed % count;
+        uint256 minIndex = (seed / count) % count;
+        if (minIndex == maxIndex) {
+            minIndex = (minIndex + 1) % count;
         }
-        uint256 remaining = available - topPrize;
+
+        uint256 minTop = (total * minTopBps) / 10_000;
+        require(minTop < total, "TopTooLarge");
+        uint256 remaining = total - minTop;
 
         uint256[] memory weights = new uint256[](count);
         uint256 weightSum = 0;
         for (uint256 i = 0; i < count; i++) {
-            uint256 w = (uint256(keccak256(abi.encode(seed, i))) % weightRange) + 1;
+            uint256 base = (uint256(keccak256(abi.encode(seed, i))) >> (256 - weightBits)) + 1;
+            uint256 w = base * base;
+            if (i == maxIndex) {
+                uint256 maxBase = (uint256(1) << weightBits) - 1;
+                w = maxBase * maxBase;
+            } else if (i == minIndex) {
+                w = 1;
+            }
             weights[i] = w;
             weightSum += w;
         }
 
+        uint256[] memory amounts = new uint256[](count);
         uint256 distributed = 0;
+        for (uint256 i = 0; i < count; i++) {
+            uint256 amount = (remaining * weights[i]) / weightSum;
+            amounts[i] = amount;
+            distributed += amount;
+        }
+        uint256 remainder = remaining - distributed;
+        amounts[maxIndex] += minTop;
+        amounts[maxIndex] += remainder;
+
         for (uint256 i = 0; i < count; i++) {
             uint256 employeeId = participantIds.at(i);
             address participant = participantById[employeeId];
-            uint256 amount;
-            if (i == count - 1) {
-                amount = remaining - distributed;
-            } else {
-                amount = (remaining * weights[i]) / weightSum;
-                distributed += amount;
-            }
-            amount += minPer;
-            if (i == topIndex) {
-                amount += topPrize;
-            }
+            uint256 amount = amounts[i];
             if (amount == 0) {
                 continue;
             }
@@ -211,6 +224,7 @@ contract RedPacketVRF is IRedPacketVRF {
             emit Allocation(participant, amount, ok);
         }
 
+        randomReady = false;
         drawInProgress = false;
         emit DrawCompleted(lastRequestId, total, count);
     }

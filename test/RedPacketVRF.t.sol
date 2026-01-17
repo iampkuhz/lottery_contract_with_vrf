@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
+import "forge-std/console.sol";
 import "../src/RedPacketVRF.sol";
 
 /*
@@ -52,6 +53,24 @@ contract RedPacketVRFTest is Test {
     address internal user2 = address(0xB0B02);
     address internal user3 = address(0xB0B03);
 
+    function _formatEth6(uint256 amountWei) internal view returns (string memory) {
+        uint256 whole = amountWei / 1e18;
+        uint256 frac = (amountWei % 1e18) / 1e12;
+        string memory fracStr = vm.toString(frac);
+        if (frac < 10) {
+            fracStr = string(abi.encodePacked("00000", fracStr));
+        } else if (frac < 100) {
+            fracStr = string(abi.encodePacked("0000", fracStr));
+        } else if (frac < 1000) {
+            fracStr = string(abi.encodePacked("000", fracStr));
+        } else if (frac < 10000) {
+            fracStr = string(abi.encodePacked("00", fracStr));
+        } else if (frac < 100000) {
+            fracStr = string(abi.encodePacked("0", fracStr));
+        }
+        return string(abi.encodePacked(vm.toString(whole), ".", fracStr));
+    }
+
     function setUp() public {
         coordinator = new VRFCoordinatorV2Mock();
         redPacket = new RedPacketVRF(address(coordinator), bytes32("key"), 1);
@@ -89,6 +108,11 @@ contract RedPacketVRFTest is Test {
         gasBefore = gasleft();
         coordinator.fulfillRandomWords(requestId, payable(address(redPacket)), 123456);
         emit log_named_uint("gas.fulfillRandomWords()", gasBefore - gasleft());
+
+        gasBefore = gasleft();
+        vm.prank(admin);
+        redPacket.distribute();
+        emit log_named_uint("gas.distribute()", gasBefore - gasleft());
         assertFalse(redPacket.drawInProgress());
         assertEq(address(redPacket).balance, 0);
     }
@@ -107,24 +131,30 @@ contract RedPacketVRFTest is Test {
     }
 
     function testRegister200AndDrawWithGasLogs() public {
-        // 逐条录入 200 人，模拟真实调用
-        for (uint256 i = 0; i < 200; i++) {
-            uint256[] memory ids = new uint256[](1);
-            address[] memory addrs = new address[](1);
-            ids[0] = 1000 + i;
-            addrs[0] = address(uint160(0x1000 + i));
+        // 每 30 人一批次录入，模拟分批调用
+        for (uint256 i = 0; i < 200; i += 30) {
+            uint256 batchSize = 200 - i;
+            if (batchSize > 30) {
+                batchSize = 30;
+            }
+            uint256[] memory ids = new uint256[](batchSize);
+            address[] memory addrs = new address[](batchSize);
+            for (uint256 j = 0; j < batchSize; j++) {
+                ids[j] = 1000 + i + j;
+                addrs[j] = address(uint160(0x1000 + i + j));
+            }
 
             uint256 gasBeforeLoop = gasleft();
             vm.prank(admin);
             redPacket.setParticipantsBatch(ids, addrs);
-            emit log_named_uint("gas.setParticipantsBatch(1)", gasBeforeLoop - gasleft());
+            emit log_named_uint("gas.setParticipantsBatch(30)", gasBeforeLoop - gasleft());
         }
 
-        // 充值 2500 ETH
-        vm.deal(address(this), 2500 ether);
+        // 充值 0.1 ETH
+        vm.deal(address(this), 0.1 ether);
         uint256 gasBefore = gasleft();
-        (bool ok, ) = address(redPacket).call{value: 2500 ether}("");
-        emit log_named_uint("gas.deposit(2500 ether)", gasBefore - gasleft());
+        (bool ok, ) = address(redPacket).call{value: 0.1 ether}("");
+        emit log_named_uint("gas.deposit(0.1 ether)", gasBefore - gasleft());
         assertTrue(ok);
 
         // 发起抽奖并回调
@@ -137,6 +167,11 @@ contract RedPacketVRFTest is Test {
         coordinator.fulfillRandomWords(requestId, payable(address(redPacket)), 20260117);
         emit log_named_uint("gas.fulfillRandomWords()", gasBefore - gasleft());
 
+        gasBefore = gasleft();
+        vm.prank(admin);
+        redPacket.distribute();
+        emit log_named_uint("gas.distribute()", gasBefore - gasleft());
+
         // 打印最大/最小/总和
         uint256 maxAmount = 0;
         uint256 minAmount = type(uint256).max;
@@ -144,6 +179,15 @@ contract RedPacketVRFTest is Test {
         for (uint256 i = 0; i < 200; i++) {
             address participant = address(uint160(0x1000 + i));
             uint256 bal = participant.balance;
+            string memory line = string(
+                abi.encodePacked(
+                    "employeeId=",
+                    vm.toString(1000 + i),
+                    " amountEth=",
+                    _formatEth6(bal)
+                )
+            );
+            console.log(line);
             if (bal > maxAmount) {
                 maxAmount = bal;
             }
@@ -156,8 +200,11 @@ contract RedPacketVRFTest is Test {
         emit log_named_uint("result.minAmount", minAmount);
         emit log_named_uint("result.sumAmount", sumAmount);
 
-        assertGt(maxAmount, 100 ether);
-        assertGe(minAmount, 0.1 ether);
-        assertEq(sumAmount, 2500 ether);
+        if (minAmount > 0) {
+            emit log_named_uint("result.maxMinRatio", maxAmount / minAmount);
+            assertGt(maxAmount / minAmount, 500);
+        }
+        assertGe(maxAmount, 0.005 ether);
+        assertEq(sumAmount, 0.1 ether);
     }
 }
