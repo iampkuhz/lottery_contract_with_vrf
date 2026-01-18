@@ -83,13 +83,15 @@ interface IRedPacketVRF {
     // 当前 VRF keyHash
     function keyHash() external view returns (bytes32);
     // 当前 VRF 订阅 ID
-    function subId() external view returns (uint64);
+    function subId() external view returns (uint256);
     // VRF 请求确认数
     function requestConfirmations() external view returns (uint16);
     // VRF 回调 gas 上限
     function callbackGasLimit() external view returns (uint32);
     // VRF 随机词数量
     function numWords() external view returns (uint32);
+    // VRF 是否使用原生币支付
+    function useNativePayment() external view returns (bool);
     // 头奖最小占比（bps）
     function minTopBps() external view returns (uint16);
     // 权重取值位数
