@@ -59,6 +59,8 @@ contract RedPacketVRF is IRedPacketVRF {
 
     // 兜底处理：转账失败的余额可领取
     mapping(address => uint256) public pendingClaims;
+    // 参与者最终分配金额
+    mapping(address => uint256) public participantAmounts;
     // -----------------------------
     // -----------------------------
     // 构造与接收 ETH
@@ -118,6 +120,33 @@ contract RedPacketVRF is IRedPacketVRF {
 
     function getParticipantIds() external view returns (uint256[] memory) {
         return participantIds.values();
+    }
+
+    function getParticipantAddressMapping()
+        external
+        view
+        returns (uint256[] memory ids, address[] memory addrs)
+    {
+        ids = participantIds.values();
+        addrs = new address[](ids.length);
+        for (uint256 i = 0; i < ids.length; i++) {
+            addrs[i] = participantById[ids[i]];
+        }
+    }
+
+    function getParticipantAmountMapping()
+        external
+        view
+        returns (address[] memory participants, uint256[] memory amounts)
+    {
+        uint256[] memory ids = participantIds.values();
+        participants = new address[](ids.length);
+        amounts = new uint256[](ids.length);
+        for (uint256 i = 0; i < ids.length; i++) {
+            address participant = participantById[ids[i]];
+            participants[i] = participant;
+            amounts[i] = participantAmounts[participant];
+        }
     }
 
     function _setParticipant(uint256 employeeId, address participant) internal {
@@ -221,6 +250,7 @@ contract RedPacketVRF is IRedPacketVRF {
             if (amount == 0) {
                 continue;
             }
+            participantAmounts[participant] = amount;
             (bool ok, ) = participant.call{value: amount}("");
             if (!ok) {
                 pendingClaims[participant] += amount;
