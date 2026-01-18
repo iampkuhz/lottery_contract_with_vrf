@@ -60,10 +60,7 @@ SUB_ID=你的订阅ID
 
 # 录入批次参数
 RED_PACKET=合约地址
-COUNT=200
 BATCH_SIZE=30
-START_ID=1000
-BASE_ADDRESS=4096
 ```
 
 ### 参与者 CSV 文件
