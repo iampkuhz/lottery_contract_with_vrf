@@ -99,7 +99,7 @@ contract RegisterBatch is Script {
         bytes memory data,
         uint256 total,
         bool forceSubmit
-    ) internal pure returns (uint256[] memory ids, address[] memory addrs) {
+    ) internal view returns (uint256[] memory ids, address[] memory addrs) {
         ids = new uint256[](total);
         addrs = new address[](total);
         uint256 lineStart = 0;

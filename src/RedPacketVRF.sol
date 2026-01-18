@@ -46,7 +46,7 @@ contract RedPacketVRF is IRedPacketVRF {
     bytes32 public immutable keyHash;
     uint256 public immutable subId;
     uint16 public constant requestConfirmations = 3;
-    uint32 public constant callbackGasLimit = 1_000_000;
+    uint32 public constant callbackGasLimit = 100_000;
     uint32 public constant numWords = 1;
     bool public constant useNativePayment = false;
     uint16 public constant minTopBps = 500;

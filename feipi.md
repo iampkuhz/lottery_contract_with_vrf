@@ -1,5 +1,8 @@
 # 菲皮 操作记录
 
+## 0118-3 vrf 配置错误
+1. 本地没有使用 v2.5 的 合约地址，环境变量没更新，重新部署一个合约
+
 ## 0118-2 添加合约接口
 1. add getParticipantAmountMapping and getParticipantAddressMapping 
 
