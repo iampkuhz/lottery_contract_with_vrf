@@ -75,7 +75,7 @@ interface IRedPacketVRF {
 
     /*
      * ============================================================
-     * 只读状态 - VRF 配置
+     * 只读状态 - VRF 与抽奖状态
      * ============================================================
      */
     // 当前 VRF Coordinator 地址
@@ -96,12 +96,6 @@ interface IRedPacketVRF {
     function minTopBps() external view returns (uint16);
     // 权重取值位数
     function weightBits() external view returns (uint16);
-
-    /*
-     * ============================================================
-     * 只读状态 - 抽奖状态
-     * ============================================================
-     */
     // 是否处于抽奖中
     function drawInProgress() external view returns (bool);
     // 随机数是否已就绪
@@ -113,11 +107,17 @@ interface IRedPacketVRF {
 
     /*
      * ============================================================
-     * 只读状态 - 兜底金额
+     * 只读状态 - 分配结果与兜底金额
      * ============================================================
      */
     // 参与者待领取金额
     function pendingClaims(address participant) external view returns (uint256);
+    // 获取参与者最终分配金额映射
+    function getParticipantAmountMapping() external view returns (address[] memory participants, uint256[] memory amounts);
+    // 获取参与者工号列表
+    function getParticipantIds() external view returns (uint256[] memory);
+    // 获取参与者工号与地址映射
+    function getParticipantAddressMapping() external view returns (uint256[] memory ids, address[] memory addrs);
 
     // 外部接口
     // 直接转账充值入口
@@ -146,8 +146,6 @@ interface IRedPacketVRF {
     function setParticipantsBatch(uint256[] calldata employeeIds, address[] calldata participants) external;
     // 移除参与者
     function removeParticipant(uint256 employeeId) external;
-    // 获取参与者工号列表
-    function getParticipantIds() external view returns (uint256[] memory);
 
     /*
      * ============================================================

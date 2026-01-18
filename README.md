@@ -60,10 +60,7 @@ SUB_ID=你的订阅ID
 
 # 录入批次参数
 RED_PACKET=合约地址
-COUNT=200
 BATCH_SIZE=30
-START_ID=1000
-BASE_ADDRESS=4096
 ```
 
 ### 参与者 CSV 文件
@@ -167,11 +164,13 @@ source: https://docs.chain.link/vrf/v2-5/supported-networks
 
 ### testRegister200AndDrawWithGasLogs()
 1. 每 30 人一批次调用 `setParticipantsBatch(ids, addrs)` 录入 200 名参与者。
-2. 向合约转账 `0.1 ether`（触发 `receive`）。
-3. `requestDraw()`：由 `admin` 发起抽奖，返回 `requestId`。
-4. `fulfillRandomWords(requestId, address(redPacket), 20260117)`：由 mock 回调 VRF。
-5. `distribute()`：由 `admin` 触发分配。
-6. 打印统计：最大/最小/总和余额；并断言 `sum == 0.1 ether`。
+2. 调用 `getParticipantAddressMapping()` 校验 200 名参与者工号与地址映射。
+3. 向合约转账 `0.1 ether`（触发 `receive`）。
+4. `requestDraw()`：由 `admin` 发起抽奖，返回 `requestId`。
+5. `fulfillRandomWords(requestId, address(redPacket), 20260117)`：由 mock 回调 VRF。
+6. `distribute()`：由 `admin` 触发分配。
+7. `getParticipantAmountMapping()` 校验 200 名参与者分配金额映射。
+8. 打印统计：最大/最小/总和余额；并断言 `sum == 0.1 ether`。
 
 ### 常用交互命令（cast）
 ```bash
