@@ -45,7 +45,6 @@ contract RegisterBatch is Script {
         console2.log("redPacket", redPacketAddr);
         console2.log("batchSize", batchSize);
         console2.log("forceSubmit", forceSubmit);
-
         (uint256 lineNo, uint256 total, uint256 skipped) = _validateCsv(data, forceSubmit);
         (uint256[] memory ids, address[] memory addrs) = _collectCsv(data, total, forceSubmit);
 
@@ -75,14 +74,13 @@ contract RegisterBatch is Script {
                         lineNo++;
                         if (lineNo > 1) {
                             (bool ok, uint256 userId, address wallet) = _parseLine(line);
-                            if (!ok || userId == 0 || wallet == address(0) || wallet.code.length > 0) {
+                            if (!ok || userId == 0 || wallet == address(0)) {
                                 if (forceSubmit) {
                                     skipped++;
                                 } else {
                                     require(ok, "InvalidCsvLine");
                                     require(userId > 0, "InvalidUserId");
                                     require(wallet != address(0), "InvalidWallet");
-                                    require(wallet.code.length == 0, "ContractNotAllowed");
                                 }
                             } else {
                                 total++;
@@ -115,7 +113,10 @@ contract RegisterBatch is Script {
                         lineNo++;
                         if (lineNo > 1) {
                             (bool ok, uint256 userId, address wallet) = _parseLine(line);
-                            if (ok && userId > 0 && wallet != address(0) && wallet.code.length == 0) {
+                            if (ok && userId > 0 && wallet != address(0)) {
+                                if (forceSubmit && wallet.code.length > 0) {
+                                    continue;
+                                }
                                 ids[idx] = userId;
                                 addrs[idx] = wallet;
                                 idx++;
