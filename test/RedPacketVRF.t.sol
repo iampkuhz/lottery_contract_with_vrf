@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../src/RedPacketVRF.sol";
+import "../src/libraries/VRFV2PlusClient.sol";
 
 /*
  * ============================================================
@@ -17,15 +18,11 @@ import "../src/RedPacketVRF.sol";
  */
 
 /// @dev 简化版 VRF Mock，仅用于本地测试
-contract VRFCoordinatorV2Mock {
+contract VRFCoordinatorV2PlusMock {
     uint256 public nextRequestId = 1;
 
     function requestRandomWords(
-        bytes32,
-        uint64,
-        uint16,
-        uint32,
-        uint32
+        VRFV2PlusClient.RandomWordsRequest calldata
     ) external returns (uint256 requestId) {
         requestId = nextRequestId++;
     }
@@ -46,7 +43,7 @@ contract RevertingReceiver {
 
 contract RedPacketVRFTest is Test {
     RedPacketVRF internal redPacket;
-    VRFCoordinatorV2Mock internal coordinator;
+    VRFCoordinatorV2PlusMock internal coordinator;
 
     address internal admin = address(0xA11CE);
     address internal user1 = address(0xB0B01);
@@ -72,7 +69,7 @@ contract RedPacketVRFTest is Test {
     }
 
     function setUp() public {
-        coordinator = new VRFCoordinatorV2Mock();
+        coordinator = new VRFCoordinatorV2PlusMock();
         redPacket = new RedPacketVRF(address(coordinator), bytes32("key"), 1);
 
         // owner 默认是部署者

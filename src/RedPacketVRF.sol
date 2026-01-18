@@ -2,7 +2,8 @@
 pragma solidity ^0.8.24;
 
 import "./IRedPacketVRF.sol";
-import "./interfaces/VRFCoordinatorV2Interface.sol";
+import "./interfaces/VRFCoordinatorV2PlusInterface.sol";
+import "./libraries/VRFV2PlusClient.sol";
 import "openzeppelin-contracts/utils/structs/EnumerableSet.sol";
 
 /// @title 红包合约（基于 Chainlink VRF 随机数）
@@ -43,10 +44,11 @@ contract RedPacketVRF is IRedPacketVRF {
     // -----------------------------
     address public immutable vrfCoordinator;
     bytes32 public immutable keyHash;
-    uint64 public immutable subId;
+    uint256 public immutable subId;
     uint16 public constant requestConfirmations = 3;
     uint32 public constant callbackGasLimit = 1_000_000;
     uint32 public constant numWords = 1;
+    bool public constant useNativePayment = false;
     uint16 public constant minTopBps = 500;
     uint16 public constant weightBits = 16;
 
@@ -61,7 +63,7 @@ contract RedPacketVRF is IRedPacketVRF {
     // -----------------------------
     // 构造与接收 ETH
     // -----------------------------
-    constructor(address _vrfCoordinator, bytes32 _keyHash, uint64 _subId) {
+    constructor(address _vrfCoordinator, bytes32 _keyHash, uint256 _subId) {
         owner = msg.sender;
         _addAdmin(msg.sender);
         require(_vrfCoordinator != address(0), "ZeroCoordinator");
@@ -134,13 +136,16 @@ contract RedPacketVRF is IRedPacketVRF {
         require(participantIds.length() > 0, "NoParticipants");
         require(address(this).balance > 0, "NoBalance");
 
-        requestId = VRFCoordinatorV2Interface(vrfCoordinator).requestRandomWords(
-            keyHash,
-            subId,
-            requestConfirmations,
-            callbackGasLimit,
-            numWords
-        );
+        VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient.RandomWordsRequest({
+            keyHash: keyHash,
+            subId: subId,
+            requestConfirmations: requestConfirmations,
+            callbackGasLimit: callbackGasLimit,
+            numWords: numWords,
+            extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: useNativePayment}))
+        });
+
+        requestId = VRFCoordinatorV2PlusInterface(vrfCoordinator).requestRandomWords(request);
         drawInProgress = true;
         lastRequestId = requestId;
         emit DrawRequested(requestId);

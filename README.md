@@ -5,7 +5,7 @@
 ## 功能概述
 - 任何人都可向合约充值 ETH（红包资金池）。
 - 参与抽奖的人由管理员录入：`工号 -> 地址` 的映射，支持批量录入，约 200 人规模。
-- 到达指定时间后，管理员发起抽奖请求，通过 Chainlink VRF 获取随机数。
+- 管理员随时发起抽奖请求，通过 Chainlink VRF 获取随机数。
 - 合约基于随机数生成权重并分配金额，直接转账给每位参与者。
 - 若转账失败，自动记入 `pendingClaims`，参与者可自行领取（兜底处理）。
 - 管理员支持列表与紧急提现（兜底处理）。
@@ -54,8 +54,8 @@ RPC_URL=https://sepolia.infura.io/v3/xxxxx
 PRIVATE_KEY=你的私钥
 
 # VRF（Sepolia / Mainnet 参考值见下方）
-VRF_COORDINATOR=0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625
-KEY_HASH=0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c
+VRF_COORDINATOR=0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B
+KEY_HASH=0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae
 SUB_ID=你的订阅ID
 
 # 录入批次参数
@@ -78,13 +78,14 @@ BASE_ADDRESS=4096
 ```bash
 export RPC_URL="https://sepolia.infura.io/v3/xxxxx"
 export PRIVATE_KEY="你的私钥"
-export VRF_COORDINATOR="0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625"
-export KEY_HASH="0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c"
+export VRF_COORDINATOR="0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B"
+export KEY_HASH="0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae"
 export SUB_ID="你的订阅ID"
 ```
-> 上述 `VRF_COORDINATOR` / `KEY_HASH` 为 Sepolia VRF v2 示例参数，来自 Chainlink 官方文档的 V2 Subscription Supported Networks 页面：
+> `SUB_ID` 为 v2.5 的 `uint256` 订阅 ID，请直接从 Subscription Manager 复制完整值，不要截断。
+> 上述 `VRF_COORDINATOR` / `KEY_HASH` 为 Sepolia VRF v2.5 示例参数，来自 Chainlink 官方文档的 v2.5 Supported Networks 页面：
 ```text
-source: https://docs.chain.link/vrf/v2/subscription/supported-networks
+source: https://docs.chain.link/vrf/v2-5/supported-networks
 ```
 
 ### 2) 创建并充值 VRF 订阅
@@ -117,23 +118,23 @@ cast send $RED_PACKET --value 0.1ether --private-key $PRIVATE_KEY --rpc-url $RPC
 ### 8) VRF 回调完成后触发分配
 等待 VRF 回调完成（可通过 `randomReady()` 查看），然后执行：见 `script/Distribute.s.sol` 顶部注释。
 
-### Sepolia / Mainnet 参数参考（VRF v2, Subscription）
-> 以下为 Chainlink 官方文档提供的 VRF v2 subscription 参数示例（本合约接口为 v2）。
+### Sepolia / Mainnet 参数参考（VRF v2.5, Subscription）
+> 以下为 Chainlink 官方文档提供的 VRF v2.5 subscription 参数示例（本合约接口为 v2.5）。
 
 **Sepolia**
 ```
-VRF_COORDINATOR=0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625
-KEY_HASH=0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c  # 750 gwei
-source: https://docs.chain.link/vrf/v2/subscription/supported-networks
+VRF_COORDINATOR=0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B
+KEY_HASH=0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae  # 500 gwei
+source: https://docs.chain.link/vrf/v2-5/supported-networks
 ```
 
 **Ethereum Mainnet**
 ```
-VRF_COORDINATOR=0x271682DEB8C4E0901D1a1550aD2e64D568E69909
-KEY_HASH=0x8af398995b04c28e9951adb9721ef74c74f93e6a478f39e7e0777be13527e7ef  # 200 gwei
-# 500 gwei: 0xff8dedfbfa60af186cf3c830acbc32c05aae823045ae5ea7da1e45fbfaba4f92
-# 1000 gwei: 0x9fe0eebf5e446e3c998ec9bb19951541aee00bb90ea201ae456421a2ded86805
-source: https://docs.chain.link/vrf/v2/subscription/supported-networks
+VRF_COORDINATOR=0xD7f86b4b8Cae7D942340FF628F82735b7a20893a
+KEY_HASH=0x8077df514608a09f83e4e8d300645594e5d7234665448ba83f51a50f842bd3d9  # 200 gwei
+# 500 gwei: 0x3fd2fec10d06ee8f65e7f2e95f5c56511359ece3f33960ad8a866ae24a8ff10b
+# 1000 gwei: 0xc6bf2e7b88e5cfbb4946ff23af846494ae1f3c65270b79ee7876c9aa99d3d45f
+source: https://docs.chain.link/vrf/v2-5/supported-networks
 ```
 
 **VRF v2.5 Supported Networks**
@@ -148,7 +149,7 @@ source: https://docs.chain.link/vrf/v2-5/supported-networks
 > 说明：以下流程以 `test/RedPacketVRF.t.sol` 为准，后续修改测试逻辑时请同步更新本节。
 
 ### setUp()
-1. 部署 `VRFCoordinatorV2Mock`（本地 VRF mock）。
+1. 部署 `VRFCoordinatorV2PlusMock`（本地 VRF mock）。
 2. 部署 `RedPacketVRF`，构造参数 `_vrfCoordinator = address(coordinator)`、`_keyHash = bytes32("key")`、`_subId = 1`。
 3. `addAdmin(admin)`：由 owner 添加管理员。
 
@@ -192,7 +193,7 @@ cast send $RED_PACKET "distribute()" --private-key $PRIVATE_KEY --rpc-url $RPC_U
 - 管理员紧急提现：`emergencyWithdraw(address to, uint256 amount)`
 
 ## 注意事项
-- 真实环境需使用 Chainlink VRF V2 的正确 `coordinator/keyHash/subId` 配置。
+- 真实环境需使用 Chainlink VRF v2.5 的正确 `coordinator/keyHash/subId` 配置。
 - 参与者录入时会拒绝合约地址，仅允许 EOA（`code.length == 0`）。
 - 抽奖前确保合约已充值，且参与者列表不为空。
 - 分配算法为“随机权重 + 头奖保底”，权重取哈希高位并平方放大，头奖至少占 `minTopBps`。

@@ -9,6 +9,7 @@ import "../src/RedPacketVRF.sol";
  *
  * 运行命令：
  *   set -a; source .env; set +a
+ *   ## 加上  --skip-simulation 跳过本地 simulation，强烈【不推荐】
  *   forge script script/Deploy.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY
  *
  * 依赖环境变量：
@@ -23,7 +24,7 @@ contract Deploy is Script {
         uint256 pk = vm.envUint("PRIVATE_KEY");
         address coordinator = vm.envAddress("VRF_COORDINATOR");
         bytes32 keyHash = vm.envBytes32("KEY_HASH");
-        uint64 subId = uint64(vm.envUint("SUB_ID"));
+        uint256 subId = vm.envUint("SUB_ID");
 
         vm.startBroadcast(pk);
         deployed = new RedPacketVRF(coordinator, keyHash, subId);
