@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "forge-std/Script.sol";
+import "forge-std/console2.sol";
 import "../src/RedPacketVRF.sol";
 
 /*
@@ -32,16 +33,26 @@ contract RegisterBatch is Script {
         uint256 batchSize = vm.envUint("BATCH_SIZE");
         string memory csvPath = vm.envOr("CSV_PATH", string("data/participants.csv"));
 
+        require(redPacketAddr != address(0), "ZeroRedPacket");
+        require(batchSize > 0, "ZeroBatchSize");
+
         RedPacketVRF redPacket = RedPacketVRF(payable(redPacketAddr));
 
         string memory csv = vm.readFile(csvPath);
         bytes memory data = bytes(csv);
+        require(data.length > 0, "EmptyCsv");
 
         uint256 lineStart = 0;
         uint256 lineNo = 0;
         uint256 total = 0;
+        uint256 skipped = 0;
+        uint256 sentBatches = 0;
         uint256[] memory ids = new uint256[](batchSize);
         address[] memory addrs = new address[](batchSize);
+
+        console2.log("csvPath", csvPath);
+        console2.log("redPacket", redPacketAddr);
+        console2.log("batchSize", batchSize);
 
         vm.startBroadcast(pk);
 
@@ -53,15 +64,23 @@ contract RegisterBatch is Script {
                     if (bytes(line).length > 0) {
                         lineNo++;
                         if (lineNo > 1) {
-                            uint256 userId = vm.parseUint(_csvColumn(line, 1));
-                            address wallet = vm.parseAddress(_csvColumn(line, 4));
+                            string memory userIdStr = _csvColumn(line, 1);
+                            string memory walletStr = _csvColumn(line, 4);
+                            if (bytes(userIdStr).length == 0 || bytes(walletStr).length == 0) {
+                                skipped++;
+                            } else {
+                                uint256 userId = vm.parseUint(userIdStr);
+                                address wallet = vm.parseAddress(walletStr);
 
-                            ids[total % batchSize] = userId;
-                            addrs[total % batchSize] = wallet;
-                            total++;
+                                ids[total % batchSize] = userId;
+                                addrs[total % batchSize] = wallet;
+                                total++;
 
-                            if (total % batchSize == 0) {
-                                redPacket.setParticipantsBatch(ids, addrs);
+                                if (total % batchSize == 0) {
+                                    redPacket.setParticipantsBatch(ids, addrs);
+                                    sentBatches++;
+                                    console2.log("batchSent", sentBatches);
+                                }
                             }
                         }
                     }
@@ -79,8 +98,15 @@ contract RegisterBatch is Script {
                 tailAddrs[k] = addrs[k];
             }
             redPacket.setParticipantsBatch(tailIds, tailAddrs);
+            sentBatches++;
+            console2.log("batchSent", sentBatches);
         }
         vm.stopBroadcast();
+
+        console2.log("lines", lineNo);
+        console2.log("total", total);
+        console2.log("skipped", skipped);
+        console2.log("batches", sentBatches);
     }
 
     function _csvColumn(string memory line, uint256 index) internal pure returns (string memory) {
