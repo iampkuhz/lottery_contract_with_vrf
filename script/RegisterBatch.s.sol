@@ -31,6 +31,7 @@ contract RegisterBatch is Script {
         uint256 pk = vm.envUint("PRIVATE_KEY");
         address redPacketAddr = vm.envAddress("RED_PACKET");
         uint256 batchSize = vm.envUint("BATCH_SIZE");
+        bool forceSubmit = vm.envOr("FORCE_SUBMIT", uint256(0)) == 1;
         string memory csvPath = vm.envOr("CSV_PATH", string("data/participants.csv"));
 
         require(redPacketAddr != address(0), "ZeroRedPacket");
@@ -43,14 +44,14 @@ contract RegisterBatch is Script {
         console2.log("csvPath", csvPath);
         console2.log("redPacket", redPacketAddr);
         console2.log("batchSize", batchSize);
+        console2.log("forceSubmit", forceSubmit);
+
+        (uint256 lineNo, uint256 total, uint256 skipped) = _validateCsv(data, forceSubmit);
+        (uint256[] memory ids, address[] memory addrs) = _collectCsv(data, total, forceSubmit);
 
         vm.startBroadcast(pk);
 
-        (uint256 lineNo, uint256 total, uint256 skipped, uint256 sentBatches) = _processCsv(
-            redPacket,
-            data,
-            batchSize
-        );
+        uint256 sentBatches = _sendBatches(redPacket, ids, addrs, batchSize);
         vm.stopBroadcast();
 
         console2.log("lines", lineNo);
@@ -59,14 +60,11 @@ contract RegisterBatch is Script {
         console2.log("batches", sentBatches);
     }
 
-    function _processCsv(
-        RedPacketVRF redPacket,
+    function _validateCsv(
         bytes memory data,
-        uint256 batchSize
-    ) internal returns (uint256 lineNo, uint256 total, uint256 skipped, uint256 sentBatches) {
+        bool forceSubmit
+    ) internal view returns (uint256 lineNo, uint256 total, uint256 skipped) {
         uint256 lineStart = 0;
-        uint256[] memory ids = new uint256[](batchSize);
-        address[] memory addrs = new address[](batchSize);
 
         for (uint256 i = 0; i <= data.length; i++) {
             if (i == data.length || data[i] == "\n") {
@@ -77,18 +75,53 @@ contract RegisterBatch is Script {
                         lineNo++;
                         if (lineNo > 1) {
                             (bool ok, uint256 userId, address wallet) = _parseLine(line);
-                            if (!ok) {
-                                skipped++;
+                            if (!ok || userId == 0 || wallet == address(0) || wallet.code.length > 0) {
+                                if (forceSubmit) {
+                                    skipped++;
+                                } else {
+                                    require(ok, "InvalidCsvLine");
+                                    require(userId > 0, "InvalidUserId");
+                                    require(wallet != address(0), "InvalidWallet");
+                                    require(wallet.code.length == 0, "ContractNotAllowed");
+                                }
                             } else {
-                                uint256 idx = total % batchSize;
+                                total++;
+                            }
+                        }
+                    }
+                }
+                lineStart = i + 1;
+            }
+        }
+    }
+
+    function _collectCsv(
+        bytes memory data,
+        uint256 total,
+        bool forceSubmit
+    ) internal pure returns (uint256[] memory ids, address[] memory addrs) {
+        ids = new uint256[](total);
+        addrs = new address[](total);
+        uint256 lineStart = 0;
+        uint256 lineNo = 0;
+        uint256 idx = 0;
+
+        for (uint256 i = 0; i <= data.length; i++) {
+            if (i == data.length || data[i] == "\n") {
+                if (i > lineStart) {
+                    string memory line = _sliceString(data, lineStart, i - lineStart);
+                    line = _trimCR(line);
+                    if (bytes(line).length > 0) {
+                        lineNo++;
+                        if (lineNo > 1) {
+                            (bool ok, uint256 userId, address wallet) = _parseLine(line);
+                            if (ok && userId > 0 && wallet != address(0) && wallet.code.length == 0) {
                                 ids[idx] = userId;
                                 addrs[idx] = wallet;
-                                total++;
-
-                                if (total % batchSize == 0) {
-                                    redPacket.setParticipantsBatch(ids, addrs);
-                                    sentBatches++;
-                                    console2.log("batchSent", sentBatches);
+                                idx++;
+                            } else {
+                                if (!forceSubmit) {
+                                    revert("InvalidCsvLine");
                                 }
                             }
                         }
@@ -97,18 +130,29 @@ contract RegisterBatch is Script {
                 lineStart = i + 1;
             }
         }
+    }
 
-        if (total % batchSize != 0) {
-            uint256 remainder = total % batchSize;
-            uint256[] memory tailIds = new uint256[](remainder);
-            address[] memory tailAddrs = new address[](remainder);
-            for (uint256 k = 0; k < remainder; k++) {
-                tailIds[k] = ids[k];
-                tailAddrs[k] = addrs[k];
+    function _sendBatches(
+        RedPacketVRF redPacket,
+        uint256[] memory ids,
+        address[] memory addrs,
+        uint256 batchSize
+    ) internal returns (uint256 sentBatches) {
+        uint256 total = ids.length;
+        uint256 idx = 0;
+        while (idx < total) {
+            uint256 remaining = total - idx;
+            uint256 size = remaining > batchSize ? batchSize : remaining;
+            uint256[] memory chunkIds = new uint256[](size);
+            address[] memory chunkAddrs = new address[](size);
+            for (uint256 i = 0; i < size; i++) {
+                chunkIds[i] = ids[idx + i];
+                chunkAddrs[i] = addrs[idx + i];
             }
-            redPacket.setParticipantsBatch(tailIds, tailAddrs);
+            redPacket.setParticipantsBatch(chunkIds, chunkAddrs);
             sentBatches++;
             console2.log("batchSent", sentBatches);
+            idx += size;
         }
     }
 
@@ -120,7 +164,7 @@ contract RegisterBatch is Script {
         }
         userId = vm.parseUint(userIdStr);
         wallet = vm.parseAddress(walletStr);
-        return (true, userId, wallet);
+        ok = true;
     }
 
     function _csvColumn(string memory line, uint256 index) internal pure returns (string memory) {
