@@ -10,7 +10,7 @@ import "../src/RedPacketVRF.sol";
  *
  * 运行命令：
  *   set -a; source .env; set +a
- *   forge script script/RegisterBatch.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY
+ *   time forge script script/RegisterBatch.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY
  *
  * 依赖环境变量：
  *   RPC_URL
@@ -28,6 +28,7 @@ import "../src/RedPacketVRF.sol";
  */
 contract RegisterBatch is Script {
     function run() external {
+        console2.log("run.start");
         uint256 pk = vm.envUint("PRIVATE_KEY");
         address redPacketAddr = vm.envAddress("RED_PACKET");
         uint256 batchSize = vm.envUint("BATCH_SIZE");
@@ -45,7 +46,10 @@ contract RegisterBatch is Script {
         console2.log("redPacket", redPacketAddr);
         console2.log("batchSize", batchSize);
         console2.log("forceSubmit", forceSubmit);
+        console2.log("csvBytes", data.length);
         (uint256 lineNo, uint256 total, uint256 skipped) = _validateCsv(data, forceSubmit);
+        console2.log("validatedLines", lineNo);
+        console2.log("validCount", total);
         (uint256[] memory ids, address[] memory addrs) = _collectCsv(data, total, forceSubmit);
 
         vm.startBroadcast(pk);
@@ -114,9 +118,6 @@ contract RegisterBatch is Script {
                         if (lineNo > 1) {
                             (bool ok, uint256 userId, address wallet) = _parseLine(line);
                             if (ok && userId > 0 && wallet != address(0)) {
-                                if (forceSubmit && wallet.code.length > 0) {
-                                    continue;
-                                }
                                 ids[idx] = userId;
                                 addrs[idx] = wallet;
                                 idx++;

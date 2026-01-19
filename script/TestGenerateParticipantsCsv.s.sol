@@ -32,6 +32,8 @@ contract TestGenerateParticipantsCsv is Script {
         string memory header = "id,user_id,user_name,user_avatar,wallet_address,wallet_type,created_at,updated_at,lottery_entered,lottery_status,lottery_balance,message\n";
         string memory out = header;
 
+        bytes1 delimiter = _detectDelimiter(data);
+
         uint256 lineStart = 0;
         for (uint256 i = 0; i <= data.length; i++) {
             if (i == data.length || data[i] == "\n") {
@@ -39,8 +41,8 @@ contract TestGenerateParticipantsCsv is Script {
                     string memory line = _sliceString(data, lineStart, i - lineStart);
                     line = _trimCR(line);
                     if (bytes(line).length > 0) {
-                        string memory col0 = _csvColumn(line, 0);
-                        string memory col1 = _csvColumn(line, 1);
+                        string memory col0 = _csvColumn(line, 0, delimiter);
+                        string memory col1 = _csvColumn(line, 1, delimiter);
                         if (_isDigits(col0)) {
                             // 构造测试行
                             string memory row = string(
@@ -66,12 +68,12 @@ contract TestGenerateParticipantsCsv is Script {
         vm.writeFile(outPath, out);
     }
 
-    function _csvColumn(string memory line, uint256 index) internal pure returns (string memory) {
+    function _csvColumn(string memory line, uint256 index, bytes1 delimiter) internal pure returns (string memory) {
         bytes memory b = bytes(line);
         uint256 start = 0;
         uint256 col = 0;
         for (uint256 i = 0; i <= b.length; i++) {
-            if (i == b.length || b[i] == ",") {
+            if (i == b.length || b[i] == delimiter) {
                 if (col == index) {
                     return _sliceString(b, start, i - start);
                 }
@@ -100,6 +102,22 @@ contract TestGenerateParticipantsCsv is Script {
             return string(out);
         }
         return s;
+    }
+
+    function _detectDelimiter(bytes memory data) internal pure returns (bytes1) {
+        uint256 lineEnd = data.length;
+        for (uint256 i = 0; i < data.length; i++) {
+            if (data[i] == "\n") {
+                lineEnd = i;
+                break;
+            }
+        }
+        for (uint256 i = 0; i < lineEnd; i++) {
+            if (data[i] == "\t") {
+                return "\t";
+            }
+        }
+        return ",";
     }
 
     function _isDigits(string memory s) internal pure returns (bool) {
