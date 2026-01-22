@@ -13,7 +13,8 @@ remappings = [
 ]
 fs_permissions = [
     { access = "read", path = "./data" },
-    { access = "write", path = "./data" }
+    { access = "write", path = "./data" },
+    { access = "read", path = "./" },
 ]
 
 # 中文注释：这里可以按需配置 RPC、Etherscan 等
