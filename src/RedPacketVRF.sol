@@ -2,14 +2,14 @@
 pragma solidity ^0.8.24;
 
 import "./IRedPacketVRF.sol";
-import "./interfaces/VRFCoordinatorV2PlusInterface.sol";
 import "./libraries/VRFV2PlusClient.sol";
+import "./vrf/VRFV2PlusWrapperConsumerBase.sol";
 import "openzeppelin-contracts/utils/structs/EnumerableSet.sol";
 
 /// @title 红包合约（基于 Chainlink VRF 随机数）
 /// @notice 任何人可充值，管理员在指定时间点请求随机数并分配红包
 /// @dev 所有注释均为中文，便于审阅与交接
-contract RedPacketVRF is IRedPacketVRF {
+contract RedPacketVRF is IRedPacketVRF, VRFV2PlusWrapperConsumerBase {
     using EnumerableSet for EnumerableSet.UintSet;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -42,13 +42,11 @@ contract RedPacketVRF is IRedPacketVRF {
     // -----------------------------
     // VRF 配置与抽奖状态
     // -----------------------------
-    address public immutable vrfCoordinator;
-    bytes32 public immutable keyHash;
-    uint256 public immutable subId;
+    address public immutable vrfWrapper;
     uint16 public constant requestConfirmations = 3;
     uint32 public constant callbackGasLimit = 70_000;
     uint32 public constant numWords = 1;
-    bool public constant useNativePayment = false;
+    bool public constant useNativePayment = true;
     uint16 public constant minTopBps = 500;
     uint16 public constant weightBits = 16;
 
@@ -65,13 +63,11 @@ contract RedPacketVRF is IRedPacketVRF {
     // -----------------------------
     // 构造与接收 ETH
     // -----------------------------
-    constructor(address _vrfCoordinator, bytes32 _keyHash, uint256 _subId) {
+    constructor(address _vrfWrapper) VRFV2PlusWrapperConsumerBase(_vrfWrapper) {
         owner = msg.sender;
         _addAdmin(msg.sender);
-        require(_vrfCoordinator != address(0), "ZeroCoordinator");
-        vrfCoordinator = _vrfCoordinator;
-        keyHash = _keyHash;
-        subId = _subId;
+        require(_vrfWrapper != address(0), "ZeroWrapper");
+        vrfWrapper = _vrfWrapper;
     }
 
     receive() external payable {
@@ -105,6 +101,7 @@ contract RedPacketVRF is IRedPacketVRF {
     // 参与者批量录入
     // -----------------------------
     function setParticipantsBatch(uint256[] calldata employeeIds, address[] calldata participants) external onlyAdmin {
+        require(!drawInProgress, "DrawInProgress");
         require(employeeIds.length == participants.length, "LengthMismatch");
         for (uint256 i = 0; i < employeeIds.length; i++) {
             _setParticipant(employeeIds[i], participants[i]);
@@ -112,6 +109,7 @@ contract RedPacketVRF is IRedPacketVRF {
     }
 
     function removeParticipant(uint256 employeeId) external onlyAdmin {
+        require(!drawInProgress, "DrawInProgress");
         require(participantIds.contains(employeeId), "ParticipantNotFound");
         participantIds.remove(employeeId);
         delete participantById[employeeId];
@@ -160,33 +158,41 @@ contract RedPacketVRF is IRedPacketVRF {
     // -----------------------------
     // 抽奖流程
     // -----------------------------
-    function requestDraw() external onlyAdmin returns (uint256 requestId) {
+    function getRequestPriceNative() external view returns (uint256) {
+        return i_vrfV2PlusWrapper.calculateRequestPriceNative(callbackGasLimit, numWords);
+    }
+
+    function requestDraw() external payable onlyAdmin returns (uint256 requestId) {
         require(!drawInProgress, "DrawInProgress");
         require(participantIds.length() > 0, "NoParticipants");
         require(address(this).balance > 0, "NoBalance");
 
-        VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient.RandomWordsRequest({
-            keyHash: keyHash,
-            subId: subId,
-            requestConfirmations: requestConfirmations,
-            callbackGasLimit: callbackGasLimit,
-            numWords: numWords,
-            extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: useNativePayment}))
-        });
-
-        requestId = VRFCoordinatorV2PlusInterface(vrfCoordinator).requestRandomWords(request);
+        bytes memory extraArgs = VRFV2PlusClient._argsToBytes(
+            VRFV2PlusClient.ExtraArgsV1({nativePayment: useNativePayment})
+        );
+        (requestId, ) = requestRandomnessPayInNative(
+            callbackGasLimit,
+            requestConfirmations,
+            numWords,
+            extraArgs
+        );
         drawInProgress = true;
         lastRequestId = requestId;
         emit DrawRequested(requestId);
     }
 
-    /// @notice VRF 回调入口，只允许 coordinator 调用
-    function rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords) external {
-        require(msg.sender == vrfCoordinator, "OnlyCoordinator");
-        _fulfillRandomWords(requestId, randomWords);
+    /// @notice VRF 回调入口，只允许 wrapper 调用
+    function rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords)
+        external
+        override(IRedPacketVRF, VRFV2PlusWrapperConsumerBase)
+    {
+        if (msg.sender != address(i_vrfV2PlusWrapper)) {
+            revert OnlyVRFV2PlusWrapperCanFulfill(msg.sender, address(i_vrfV2PlusWrapper));
+        }
+        fulfillRandomWords(requestId, randomWords);
     }
 
-    function _fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal {
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
         require(drawInProgress, "NoDraw");
         require(requestId == lastRequestId, "RequestIdMismatch");
         require(randomWords.length > 0, "NoRandom");

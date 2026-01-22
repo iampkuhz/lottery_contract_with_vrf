@@ -15,19 +15,15 @@ import "../src/RedPacketVRF.sol";
  * 依赖环境变量：
  *   RPC_URL
  *   PRIVATE_KEY
- *   VRF_COORDINATOR
- *   KEY_HASH
- *   SUB_ID
+ *   VRF_WRAPPER
  */
 contract Deploy is Script {
     function run() external returns (RedPacketVRF deployed) {
         uint256 pk = vm.envUint("PRIVATE_KEY");
-        address coordinator = vm.envAddress("VRF_COORDINATOR");
-        bytes32 keyHash = vm.envBytes32("KEY_HASH");
-        uint256 subId = vm.envUint("SUB_ID");
+        address vrfWrapper = vm.envAddress("VRF_WRAPPER");
 
         vm.startBroadcast(pk);
-        deployed = new RedPacketVRF(coordinator, keyHash, subId);
+        deployed = new RedPacketVRF(vrfWrapper);
         vm.stopBroadcast();
     }
 }

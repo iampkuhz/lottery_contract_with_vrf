@@ -5,7 +5,7 @@
 ## 功能概述
 - 任何人都可向合约充值 ETH（红包资金池）。
 - 参与抽奖的人由管理员录入：`工号 -> 地址` 的映射，支持批量录入，约 200 人规模。
-- 管理员随时发起抽奖请求，通过 Chainlink VRF 获取随机数。
+- 管理员随时发起抽奖请求，通过 Chainlink VRF v2.5 Direct Funding（Wrapper）获取随机数。
 - 合约基于随机数生成权重并分配金额，直接转账给每位参与者。
 - 若转账失败，自动记入 `pendingClaims`，参与者可自行领取（兜底处理）。
 - 管理员支持列表与紧急提现（兜底处理）。
@@ -43,7 +43,7 @@ forge install OpenZeppelin/openzeppelin-contracts
 
 ## Sepolia 部署与交互（脚本）
 
-> 说明：Chainlink 文档建议使用 VRF v2.5（v2 已被 v2.5 取代），订阅可在 VRF Subscription Manager 创建；具体网络参数以官方文档/控制台为准。
+> 说明：本合约使用 Chainlink VRF v2.5 Direct Funding（Wrapper）模式，无需订阅；具体网络参数以官方文档为准。
 
 ### .env 示例（放在仓库根目录）
 ```bash
@@ -53,10 +53,10 @@ RPC_URL=https://sepolia.infura.io/v3/xxxxx
 # 钱包
 PRIVATE_KEY=你的私钥
 
-# VRF（Sepolia / Mainnet 参考值见下方）
-VRF_COORDINATOR=0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B
-KEY_HASH=0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae
-SUB_ID=你的订阅ID
+# VRF（Direct Funding，Wrapper 地址见下方）
+VRF_WRAPPER=0x0000000000000000000000000000000000000000
+# 发起抽奖时的 VRF 费用上限（wei）
+MAX_VRF_FEE_WEI=5000000000000000
 
 # 录入批次参数
 RED_PACKET=合约地址
@@ -75,67 +75,39 @@ BATCH_SIZE=30
 ```bash
 export RPC_URL="https://sepolia.infura.io/v3/xxxxx"
 export PRIVATE_KEY="你的私钥"
-export VRF_COORDINATOR="0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B"
-export KEY_HASH="0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae"
-export SUB_ID="你的订阅ID"
+export VRF_WRAPPER="0x0000000000000000000000000000000000000000"
+export MAX_VRF_FEE_WEI=5000000000000000
 ```
-> `SUB_ID` 为 v2.5 的 `uint256` 订阅 ID，请直接从 Subscription Manager 复制完整值，不要截断。
-> 上述 `VRF_COORDINATOR` / `KEY_HASH` 为 Sepolia VRF v2.5 示例参数，来自 Chainlink 官方文档的 v2.5 Supported Networks 页面：
+> `VRF_WRAPPER` 请从 Chainlink 官方文档的 VRF v2.5 Supported Networks 页面获取。
 ```text
 source: https://docs.chain.link/vrf/v2-5/supported-networks
 ```
 
-### 2) 创建并充值 VRF 订阅
-1. 在 VRF Subscription Manager 创建订阅（Sepolia）。
-2. 为订阅充值 LINK（确保有足够余额）。
+### 2) 准备 VRF 费用（Direct Funding）
+合约会用原生币支付 VRF 请求费用（从奖池中扣），建议在发起 `requestDraw()` 前通过 `getRequestPriceNative()` 估算费用，并在脚本中设置 `MAX_VRF_FEE_WEI` 作为上限保护。
 ```text
-source: https://docs.chain.link/vrf/v2-5/subscription/create-manage
+source: https://docs.chain.link/vrf/v2-5/direct-funding
 ```
 
 ### 3) 部署合约
 见 `script/Deploy.s.sol` 顶部注释。
 
-### 4) 添加合约为订阅的 Consumer
-在 VRF Subscription Manager 将部署后的合约地址添加为 Consumer。
-```text
-source: https://docs.chain.link/vrf/v2-5/subscription/create-manage
-```
-
-### 5) 录入参与者（每 30 人一批）
+### 4) 录入参与者（每 30 人一批）
 见 `script/RegisterBatch.s.sol` 顶部注释。
 
-### 6) 充值奖池
+### 5) 充值奖池
 ```bash
 cast send $RED_PACKET --value 0.1ether --private-key $PRIVATE_KEY --rpc-url $RPC_URL
 ```
 
-### 7) 发起抽奖请求
-见 `script/RequestDraw.s.sol` 顶部注释。
+### 6) 发起抽奖请求
+见 `script/RequestDraw.s.sol` 顶部注释（会自动查询 gas price、估算费用并检查 `MAX_VRF_FEE_WEI` 上限，需 `--ffi`）。
 
-### 8) VRF 回调完成后触发分配
+### 7) VRF 回调完成后触发分配
 等待 VRF 回调完成（可通过 `randomReady()` 查看），然后执行：见 `script/Distribute.s.sol` 顶部注释。
 
-### Sepolia / Mainnet 参数参考（VRF v2.5, Subscription）
-> 以下为 Chainlink 官方文档提供的 VRF v2.5 subscription 参数示例（本合约接口为 v2.5）。
-
-**Sepolia**
-```
-VRF_COORDINATOR=0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B
-KEY_HASH=0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae  # 500 gwei
-source: https://docs.chain.link/vrf/v2-5/supported-networks
-```
-
-**Ethereum Mainnet**
-```
-VRF_COORDINATOR=0xD7f86b4b8Cae7D942340FF628F82735b7a20893a
-KEY_HASH=0x8077df514608a09f83e4e8d300645594e5d7234665448ba83f51a50f842bd3d9  # 200 gwei
-# 500 gwei: 0x3fd2fec10d06ee8f65e7f2e95f5c56511359ece3f33960ad8a866ae24a8ff10b
-# 1000 gwei: 0xc6bf2e7b88e5cfbb4946ff23af846494ae1f3c65270b79ee7876c9aa99d3d45f
-source: https://docs.chain.link/vrf/v2-5/supported-networks
-```
-
-**VRF v2.5 Supported Networks**
-```
+### VRF v2.5 Supported Networks
+```text
 source: https://docs.chain.link/vrf/v2-5/supported-networks
 ```
 
@@ -146,8 +118,8 @@ source: https://docs.chain.link/vrf/v2-5/supported-networks
 > 说明：以下流程以 `test/RedPacketVRF.t.sol` 为准，后续修改测试逻辑时请同步更新本节。
 
 ### setUp()
-1. 部署 `VRFCoordinatorV2PlusMock`（本地 VRF mock）。
-2. 部署 `RedPacketVRF`，构造参数 `_vrfCoordinator = address(coordinator)`、`_keyHash = bytes32("key")`、`_subId = 1`。
+1. 部署 `VRFV2PlusWrapperMock`（本地 VRF Wrapper mock）。
+2. 部署 `RedPacketVRF`，构造参数 `_vrfWrapper = address(wrapper)`。
 3. `addAdmin(admin)`：由 owner 添加管理员。
 
 ### testBatchSetParticipantsAndDraw()
@@ -172,12 +144,26 @@ source: https://docs.chain.link/vrf/v2-5/supported-networks
 7. `getParticipantAmountMapping()` 校验 200 名参与者分配金额映射。
 8. 打印统计：最大/最小/总和余额；并断言 `sum == 0.1 ether`。
 
+### testGasRawFulfillRandomWords()
+1. 录入 1 名参与者并充值 `0.01 ether`。
+2. `requestDraw()` 获取 `requestId`。
+3. 以 `wrapper` 身份调用 `rawFulfillRandomWords`，输出 gas 消耗日志。
+
+## Fork 测试流程说明（需与测试同步更新）
+> 说明：以下流程以 `test/RedPacketVRF.fork.t.sol` 为准，需配置 `RPC_URL` 与 `VRF_WRAPPER`；未配置时测试会自动跳过，便于流水线运行。
+
+### testForkRequestPriceNativeAndBalanceDelta()
+1. 使用 `RPC_URL` 与 `VRF_WRAPPER` 创建 fork。
+2. 部署 `RedPacketVRF` 并录入 1 名参与者。
+3. 充值 `5 ether`，调用 `getRequestPriceNative()` 获取预估费用。
+4. 发起 `requestDraw()`，断言合约余额减少等于预估费用。
+
 ### 常用交互命令（cast）
 ```bash
 # 查询随机数是否已就绪
 cast call $RED_PACKET "randomReady()(bool)" --rpc-url $RPC_URL
 
-# 管理员发起抽奖
+# 管理员发起抽奖（费用从奖池扣，脚本内校验 MAX_VRF_FEE_WEI 上限）
 cast send $RED_PACKET "requestDraw()" --private-key $PRIVATE_KEY --rpc-url $RPC_URL
 
 # 管理员触发分配（randomReady 为 true 后）
@@ -186,13 +172,14 @@ cast send $RED_PACKET "distribute()" --private-key $PRIVATE_KEY --rpc-url $RPC_U
 
 ## 合约关键接口
 - 参与者批量录入：`setParticipantsBatch(uint256[] employeeIds, address[] participants)`
-- 发起抽奖请求：`requestDraw()`
+- 发起抽奖请求：`requestDraw()`（可选携带 `value` 支付 VRF 费用）
+- 预估 VRF 费用：`getRequestPriceNative()`
 - 管理员触发分配：`distribute()`
 - 兜底领取：`claimPending()`
 - 管理员紧急提现：`emergencyWithdraw(address to, uint256 amount)`
 
 ## 注意事项
-- 真实环境需使用 Chainlink VRF v2.5 的正确 `coordinator/keyHash/subId` 配置。
+- 真实环境需使用 Chainlink VRF v2.5 的正确 `wrapper` 地址配置。
 - 参与者录入时会拒绝合约地址，仅允许 EOA（`code.length == 0`）。
 - 抽奖前确保合约已充值，且参与者列表不为空。
 - 分配算法为“随机权重 + 头奖保底”，权重取哈希高位并平方放大，头奖至少占 `minTopBps`。

@@ -78,12 +78,8 @@ interface IRedPacketVRF {
      * 只读状态 - VRF 与抽奖状态
      * ============================================================
      */
-    // 当前 VRF Coordinator 地址
-    function vrfCoordinator() external view returns (address);
-    // 当前 VRF keyHash
-    function keyHash() external view returns (bytes32);
-    // 当前 VRF 订阅 ID
-    function subId() external view returns (uint256);
+    // 当前 VRF Wrapper 地址
+    function vrfWrapper() external view returns (address);
     // VRF 请求确认数
     function requestConfirmations() external view returns (uint16);
     // VRF 回调 gas 上限
@@ -92,6 +88,8 @@ interface IRedPacketVRF {
     function numWords() external view returns (uint32);
     // VRF 是否使用原生币支付
     function useNativePayment() external view returns (bool);
+    // VRF 预估请求费用（原生币）
+    function getRequestPriceNative() external view returns (uint256);
     // 头奖最小占比（bps）
     function minTopBps() external view returns (uint16);
     // 权重取值位数
@@ -153,7 +151,7 @@ interface IRedPacketVRF {
      * ============================================================
      */
     // 发起抽奖请求
-    function requestDraw() external returns (uint256 requestId);
+    function requestDraw() external payable returns (uint256 requestId);
     // VRF 回调入口
     function rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords) external;
     // 管理员触发分配
