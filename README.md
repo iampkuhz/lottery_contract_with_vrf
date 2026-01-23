@@ -77,6 +77,7 @@ export RPC_URL="https://sepolia.infura.io/v3/xxxxx"
 export PRIVATE_KEY="你的私钥"
 export VRF_WRAPPER="0x0000000000000000000000000000000000000000"
 export MAX_VRF_FEE_WEI=5000000000000000
+export BATCH_SIZE=30
 ```
 > `VRF_WRAPPER` 请从 Chainlink 官方文档的 VRF v2.5 Supported Networks 页面获取。
 ```text
@@ -92,8 +93,8 @@ source: https://docs.chain.link/vrf/v2-5/direct-funding
 ### 3) 部署合约
 见 `script/Deploy.s.sol` 顶部注释。
 
-### 4) 录入参与者（每 30 人一批）
-见 `script/RegisterBatch.s.sol` 顶部注释。
+### 4) 录入参与者（批量）
+见 `script/RegisterBatch.s.sol` 顶部注释（`BATCH_SIZE=0` 时会自动估算批次，需 `--ffi`）。
 
 ### 5) 充值奖池
 ```bash
