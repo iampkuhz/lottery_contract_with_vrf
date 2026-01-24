@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 import "forge-std/console2.sol";
 
 /*
- * 生成 cast 批量录入命令（仅输出，不发送交易）
+ * 生成 cast 批量录入 (RegisterBatch) 命令（仅输出，不发送交易）
  *
  * 运行命令：
  *   set -a; source .env; set +a

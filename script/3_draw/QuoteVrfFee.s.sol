@@ -22,13 +22,16 @@ contract QuoteVrfFee is Script {
         address wrapper = vm.envAddress("VRF_WRAPPER");
         uint32 callbackGasLimit = 70_000;
         uint32 numWords = 1;
-        string[] memory cmd = new string[](4);
+        string[] memory cmd = new string[](5);
         cmd[0] = "cast";
-        cmd[1] = "gas-price";
-        cmd[2] = "--rpc-url";
-        cmd[3] = vm.envString("RPC_URL");
+        cmd[1] = "rpc";
+        cmd[2] = "eth_gasPrice";
+        cmd[3] = "--rpc-url";
+        cmd[4] = vm.envString("RPC_URL");
         bytes memory out = vm.ffi(cmd);
-        uint256 gasPriceWei = vm.parseUint(string(out));
+        string memory raw = string(out);
+        string memory trimmed = _stripQuotes(raw);
+        uint256 gasPriceWei = vm.parseUint(trimmed);
         vm.txGasPrice(gasPriceWei);
 
         IVRFV2PlusWrapper vrf = IVRFV2PlusWrapper(wrapper);
@@ -40,5 +43,17 @@ contract QuoteVrfFee is Script {
         console2.log("numWords", numWords);
         console2.log("tx.gasprice", tx.gasprice);
         console2.log("vrf.priceNative.wei", priceNative);
+    }
+
+    function _stripQuotes(string memory s) internal pure returns (string memory) {
+        bytes memory b = bytes(s);
+        if (b.length >= 2 && b[0] == "\"" && b[b.length - 1] == "\"") {
+            bytes memory out = new bytes(b.length - 2);
+            for (uint256 i = 0; i < b.length - 2; i++) {
+                out[i] = b[i + 1];
+            }
+            return string(out);
+        }
+        return s;
     }
 }
