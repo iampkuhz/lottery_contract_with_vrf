@@ -99,7 +99,7 @@ async function getLatestBlock() {
 }
 
 function generateUpdateSQL(address, amountWei) {
-    return `UPDATE lottery_participants SET lottery_status = 'FINISHED', lottery_balance = '${amountWei}' WHERE wallet_address = '${address}';`;
+    return `UPDATE lottery_participants SET lottery_status = 'FINISHED', lottery_balance = '${amountWei}' WHERE user_id = (SELECT user_id FROM lottery_participants WHERE LOWER(wallet_address) = LOWER('${address}') LIMIT 1);`;
 }
 
 async function main() {
