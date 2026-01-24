@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "forge-std/Script.sol";
-import "../src/RedPacketVRF.sol";
+import "../../src/RedPacketVRF.sol";
 
 /*
  * 触发分配脚本（随机数就绪后执行）

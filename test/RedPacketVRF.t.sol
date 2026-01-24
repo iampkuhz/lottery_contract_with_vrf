@@ -200,10 +200,6 @@ contract RedPacketVRFTest is Test {
         redPacket.distribute();
         emit log_named_uint("gas.distribute()", gasBefore - gasleft());
 
-        (address[] memory participants, uint256[] memory amounts) = redPacket.getParticipantAmountMapping();
-        assertEq(participants.length, 200);
-        assertEq(amounts.length, 200);
-
         // 打印最大/最小/总和
         uint256 maxAmount = 0;
         uint256 minAmount = type(uint256).max;
@@ -211,14 +207,6 @@ contract RedPacketVRFTest is Test {
         for (uint256 i = 0; i < 200; i++) {
             address participant = address(uint160(0x1000 + i));
             uint256 bal = participant.balance;
-            uint256 mappedAmount = 0;
-            for (uint256 j = 0; j < participants.length; j++) {
-                if (participants[j] == participant) {
-                    mappedAmount = amounts[j];
-                    break;
-                }
-            }
-            assertEq(mappedAmount, bal);
             string memory line = string(
                 abi.encodePacked(
                     "employeeId=",

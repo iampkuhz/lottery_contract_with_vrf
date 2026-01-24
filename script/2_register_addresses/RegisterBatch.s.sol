@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import "forge-std/Script.sol";
 import "forge-std/console2.sol";
-import "../src/RedPacketVRF.sol";
+import "../../src/RedPacketVRF.sol";
 
 /*
  * 录入脚本：按批次录入参与者

@@ -1,5 +1,58 @@
 # 脚本说明
 
+## queryAllocations.js
+
+读取合约 `Allocation` 事件，提取中奖金额并生成 SQL UPDATE 语句。
+
+### 功能
+
+- 读取合约 `Allocation` 事件
+- 以事件中的 `amount` 作为中奖金额（无论转账是否成功）
+- 生成 UPDATE SQL 语句
+- 更新表为 `lottery_participants`
+- 将所有 SQL 语句保存到 `data/update_allocations.sql` 文件
+
+### 使用方法
+
+```bash
+# 方式1：从 .env 文件读取 RPC_URL 和 RED_PACKET
+source .env
+node script/4_export_to_1d/queryAllocations.js
+
+# 方式2：直接通过环境变量传入
+RPC_URL=https://your-rpc-url.com RED_PACKET=0x... node script/4_export_to_1d/queryAllocations.js
+```
+
+### 配置
+
+**必须设置 `RPC_URL` 和 `RED_PACKET` 环境变量**。
+
+可选环境变量：
+- `FROM_BLOCK`：起始区块（默认 0）
+- `TO_BLOCK`：结束区块（默认 latest）
+- `CHUNK_SIZE`：每次查询区块跨度（默认 2000）
+
+### 输出示例
+
+```
+开始读取 Allocation 事件并生成 SQL...
+
+合约: 0x...
+区块范围: 0 - 1234567
+CHUNK_SIZE: 2000
+
+已处理区块 0 - 1999，累计事件 20
+...
+
+=================================
+生成完成！
+参与者数量: 102
+SQL 文件已生成: /path/to/data/update_allocations.sql
+=================================
+```
+
+---
+
 ## queryBalances.js
 
 查询 `participants.csv` 中每个地址的 ETH 余额，并生成 SQL UPDATE 语句用于更新数据库。
@@ -18,10 +71,10 @@
 ```bash
 # 方式1：从 .env 文件读取 RPC_URL
 source .env
-node script/queryBalances.js
+node script/4_export_to_1d/queryBalances.js
 
 # 方式2：直接通过环境变量传入
-RPC_URL=https://your-rpc-url.com node script/queryBalances.js
+RPC_URL=https://your-rpc-url.com node script/4_export_to_1d/queryBalances.js
 ```
 
 ### 配置

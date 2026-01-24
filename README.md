@@ -6,8 +6,8 @@
 - 任何人都可向合约充值 ETH（红包资金池）。
 - 参与抽奖的人由管理员录入：`工号 -> 地址` 的映射，支持批量录入，约 200 人规模。
 - 管理员随时发起抽奖请求，通过 Chainlink VRF v2.5 Direct Funding（Wrapper）获取随机数。
-- 合约基于随机数生成权重并分配金额，直接转账给每位参与者。
-- 若转账失败，自动记入 `pendingClaims`，参与者可自行领取（兜底处理）。
+- 合约基于随机数生成权重并分配金额，直接转账给每位参与者，并通过事件输出分配结果。
+- 若转账失败，金额保留在合约中，可由管理员后续处理。
 - 管理员支持列表与紧急提现（兜底处理）。
 
 ## 项目结构
@@ -142,8 +142,7 @@ source: https://docs.chain.link/vrf/v2-5/supported-networks
 4. `requestDraw()`：由 `admin` 发起抽奖，返回 `requestId`。
 5. `fulfillRandomWords(requestId, address(redPacket), 20260117)`：由 mock 回调 VRF。
 6. `distribute()`：由 `admin` 触发分配。
-7. `getParticipantAmountMapping()` 校验 200 名参与者分配金额映射。
-8. 打印统计：最大/最小/总和余额；并断言 `sum == 0.1 ether`。
+7. 打印统计：最大/最小/总和余额；并断言 `sum == 0.1 ether`。
 
 ### testGasRawFulfillRandomWords()
 1. 录入 1 名参与者并充值 `0.01 ether`。
@@ -176,7 +175,6 @@ cast send $RED_PACKET "distribute()" --private-key $PRIVATE_KEY --rpc-url $RPC_U
 - 发起抽奖请求：`requestDraw()`（可选携带 `value` 支付 VRF 费用）
 - 预估 VRF 费用：`getRequestPriceNative()`
 - 管理员触发分配：`distribute()`
-- 兜底领取：`claimPending()`
 - 管理员紧急提现：`emergencyWithdraw(address to, uint256 amount)`
 
 ## 注意事项

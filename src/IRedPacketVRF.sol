@@ -54,11 +54,6 @@ interface IRedPacketVRF {
      */
     // 单个参与者分配结果事件
     event Allocation(address indexed participant, uint256 amount, bool success);
-    // 转账失败记录待领取事件
-    event PendingClaim(address indexed participant, uint256 amount);
-    // 领取待领取金额事件
-    event Claimed(address indexed participant, uint256 amount);
-
     // 只读状态
 
     /*
@@ -108,10 +103,6 @@ interface IRedPacketVRF {
      * 只读状态 - 分配结果与兜底金额
      * ============================================================
      */
-    // 参与者待领取金额
-    function pendingClaims(address participant) external view returns (uint256);
-    // 获取参与者最终分配金额映射
-    function getParticipantAmountMapping() external view returns (address[] memory participants, uint256[] memory amounts);
     // 获取参与者工号列表
     function getParticipantIds() external view returns (uint256[] memory);
     // 获取参与者工号与地址映射
@@ -157,11 +148,4 @@ interface IRedPacketVRF {
     // 管理员触发分配
     function distribute() external;
 
-    /*
-     * ============================================================
-     * 外部接口 - 兜底领取
-     * ============================================================
-     */
-    // 领取待领取金额
-    function claimPending() external;
 }

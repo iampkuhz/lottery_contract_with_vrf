@@ -1,5 +1,7 @@
 # 菲皮 操作记录
 
+## 0124 合约切换到事件驱动，不再记录 storage
+
 ## 0122 vrf Direct Funding
 1. 切换到 Direct Funding 重新部署
 
@@ -19,9 +21,12 @@
 # 工具命令
 
 ```bash
-生成 json 文件，在etherscan 上完成合约 verify
+#生成 json 文件，在etherscan 上完成合约 verify
 forge verify-contract --show-standard-json-input 0x0000000000000000000000000000000000000000 src/RedPacketVRF.sol:RedPacketVRF > ~/Downloads/tmp.json
 
-从老合约中吧 eth 转移给新合约
+#从老合约中吧 eth 转移给新合约
 cast send $RED_PACKET "emergencyWithdraw(address,uint256)" 0xYourToAddress 0.05ether --private-key $PRIVATE_KEY --rpc-url $RPC_URL
+
+#给合约地址转账
+cast send 0xRedPacket --value 0.5ether --private-key $PRIVATE_KEY --rpc-url $RPC_URL
 ```

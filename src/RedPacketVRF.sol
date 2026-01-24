@@ -55,10 +55,6 @@ contract RedPacketVRF is IRedPacketVRF, VRFV2PlusWrapperConsumerBase {
     uint256 public lastRequestId;
     uint256 public lastRandomWord;
 
-    // 兜底处理：转账失败的余额可领取
-    mapping(address => uint256) public pendingClaims;
-    // 参与者最终分配金额
-    mapping(address => uint256) public participantAmounts;
     // -----------------------------
     // -----------------------------
     // 构造与接收 ETH
@@ -129,21 +125,6 @@ contract RedPacketVRF is IRedPacketVRF, VRFV2PlusWrapperConsumerBase {
         addrs = new address[](ids.length);
         for (uint256 i = 0; i < ids.length; i++) {
             addrs[i] = participantById[ids[i]];
-        }
-    }
-
-    function getParticipantAmountMapping()
-        external
-        view
-        returns (address[] memory participants, uint256[] memory amounts)
-    {
-        uint256[] memory ids = participantIds.values();
-        participants = new address[](ids.length);
-        amounts = new uint256[](ids.length);
-        for (uint256 i = 0; i < ids.length; i++) {
-            address participant = participantById[ids[i]];
-            participants[i] = participant;
-            amounts[i] = participantAmounts[participant];
         }
     }
 
@@ -256,12 +237,7 @@ contract RedPacketVRF is IRedPacketVRF, VRFV2PlusWrapperConsumerBase {
             if (amount == 0) {
                 continue;
             }
-            participantAmounts[participant] = amount;
             (bool ok, ) = participant.call{value: amount}("");
-            if (!ok) {
-                pendingClaims[participant] += amount;
-                emit PendingClaim(participant, amount);
-            }
             emit Allocation(participant, amount, ok);
         }
 
@@ -271,17 +247,8 @@ contract RedPacketVRF is IRedPacketVRF, VRFV2PlusWrapperConsumerBase {
     }
 
     // -----------------------------
-    // 兜底领取与紧急处理
+    // 紧急处理
     // -----------------------------
-    function claimPending() external {
-        uint256 amount = pendingClaims[msg.sender];
-        require(amount > 0, "NoPending");
-        pendingClaims[msg.sender] = 0;
-        (bool ok, ) = msg.sender.call{value: amount}("");
-        require(ok, "ClaimFailed");
-        emit Claimed(msg.sender, amount);
-    }
-
     function emergencyWithdraw(address to, uint256 amount) external onlyAdmin {
         require(to != address(0), "ZeroTo");
         (bool ok, ) = to.call{value: amount}("");

@@ -10,8 +10,8 @@ const path = require('path');
 const https = require('https');
 
 // 配置
-const CSV_FILE_PATH = path.join(__dirname, '../data/participants.csv');
-const SQL_OUTPUT_PATH = path.join(__dirname, '../data/update_balances.sql');
+const CSV_FILE_PATH = path.join(__dirname, '../../data/participants.csv');
+const SQL_OUTPUT_PATH = path.join(__dirname, '../../data/update_balances.sql');
 const RPC_URL = process.env.RPC_URL;
 
 // 检查环境变量

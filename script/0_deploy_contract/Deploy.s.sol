@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "forge-std/Script.sol";
-import "../src/RedPacketVRF.sol";
+import "../../src/RedPacketVRF.sol";
 
 /*
  * 部署脚本：读取环境变量并部署合约

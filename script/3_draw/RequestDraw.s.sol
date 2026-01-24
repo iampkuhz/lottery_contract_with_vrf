@@ -3,8 +3,8 @@ pragma solidity ^0.8.24;
 
 import "forge-std/Script.sol";
 import "forge-std/console2.sol";
-import "../src/RedPacketVRF.sol";
-import "../src/interfaces/IVRFV2PlusWrapper.sol";
+import "../../src/RedPacketVRF.sol";
+import "../../src/interfaces/IVRFV2PlusWrapper.sol";
 
 /*
  * 发起抽奖请求脚本
