@@ -10,7 +10,7 @@ import "../src/RedPacketVRF.sol";
  * 运行命令：
  *   set -a; source .env; set +a
  *   ## 加上  --skip-simulation 跳过本地 simulation，强烈【不推荐】
- *   forge script script/Deploy.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY
+ *   forge script script/0_deploy_contract/Deploy.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY
  *
  * 依赖环境变量：
  *   RPC_URL

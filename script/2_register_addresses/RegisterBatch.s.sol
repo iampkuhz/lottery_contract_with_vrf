@@ -10,7 +10,7 @@ import "../src/RedPacketVRF.sol";
  *
  * 运行命令：
  *   set -a; source .env; set +a
- *   time forge script script/RegisterBatch.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY
+ *   time forge script script/2_register_addresses/RegisterBatch.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY
  *   若 BATCH_SIZE=0 启用自动估算批次，请加上 --ffi
  *
  * 依赖环境变量：

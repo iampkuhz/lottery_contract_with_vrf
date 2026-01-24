@@ -9,7 +9,7 @@ import "forge-std/console2.sol";
  *
  * 运行命令：
  *   set -a; source .env; set +a
- *   forge script script/GenerateCastRegisterCommands.s.sol
+ *   forge script script/2_register_addresses/GenerateCastRegisterCommands.s.sol
  *
  * 依赖环境变量：
  *   RED_PACKET
