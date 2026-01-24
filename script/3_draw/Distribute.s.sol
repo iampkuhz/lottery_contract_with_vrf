@@ -9,7 +9,7 @@ import "../src/RedPacketVRF.sol";
  *
  * 运行命令：
  *   set -a; source .env; set +a
- *   forge script script/Distribute.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY
+ *   forge script script/3_draw/Distribute.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY
  *
  * 依赖环境变量：
  *   RPC_URL

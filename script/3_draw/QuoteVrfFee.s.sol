@@ -10,7 +10,7 @@ import "../src/interfaces/IVRFV2PlusWrapper.sol";
  *
  * 运行命令：
  *   set -a; source .env; set +a
- *   forge script script/QuoteVrfFee.s.sol --rpc-url $RPC_URL
+ *   forge script script/3_draw/QuoteVrfFee.s.sol --fork-url $RPC_URL --ffi
  *
  * 依赖环境变量：
  *   RPC_URL

@@ -11,7 +11,7 @@ import "../src/interfaces/IVRFV2PlusWrapper.sol";
  *
  * 运行命令：
  *   set -a; source .env; set +a
- *   forge script script/RequestDraw.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY --ffi
+ *   forge script script/3_draw/RequestDraw.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY --ffi
  *
  * 依赖环境变量：
  *   RPC_URL
