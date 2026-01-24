@@ -15,7 +15,6 @@ const RPC_URL = process.env.RPC_URL;
 const RED_PACKET = process.env.RED_PACKET;
 const FROM_BLOCK = process.env.FROM_BLOCK ? Number(process.env.FROM_BLOCK) : 0;
 const TO_BLOCK = process.env.TO_BLOCK ? Number(process.env.TO_BLOCK) : null;
-const CHUNK_SIZE = process.env.CHUNK_SIZE ? Number(process.env.CHUNK_SIZE) : 2000;
 
 // Allocation(address indexed participant, uint256 amount, bool success)
 const ALLOCATION_TOPIC0 = '0x713569d3f9f2579eed9b8cfa81c153510a6aabb75d14627b781afc964fd9bee5';
@@ -108,37 +107,34 @@ async function main() {
     console.log('开始读取 Allocation 事件并生成 SQL...\n');
     console.log(`合约: ${RED_PACKET}`);
     console.log(`区块范围: ${FROM_BLOCK} - ${toBlock}`);
-    console.log(`CHUNK_SIZE: ${CHUNK_SIZE}\n`);
+    console.log('');
 
     const totals = new Map();
     let totalEvents = 0;
     let successEvents = 0;
     let failedEvents = 0;
 
-    for (let from = FROM_BLOCK; from <= toBlock; from += CHUNK_SIZE) {
-        const to = Math.min(from + CHUNK_SIZE - 1, toBlock);
-        const logs = await rpcRequest('eth_getLogs', [{
-            address: RED_PACKET,
-            fromBlock: toHexBlock(from),
-            toBlock: toHexBlock(to),
-            topics: [ALLOCATION_TOPIC0]
-        }]);
+    const logs = await rpcRequest('eth_getLogs', [{
+        address: RED_PACKET,
+        fromBlock: toHexBlock(FROM_BLOCK),
+        toBlock: toHexBlock(toBlock),
+        topics: [ALLOCATION_TOPIC0]
+    }]);
 
-        for (const log of logs) {
-            totalEvents++;
-            const participant = parseAddressFromTopic(log.topics[1]);
-            const { amount, success } = parseAllocationData(log.data);
-            const prev = totals.get(participant) || 0n;
-            totals.set(participant, prev + amount);
-            if (success) {
-                successEvents++;
-            } else {
-                failedEvents++;
-            }
+    for (const log of logs) {
+        totalEvents++;
+        const participant = parseAddressFromTopic(log.topics[1]);
+        const { amount, success } = parseAllocationData(log.data);
+        const prev = totals.get(participant) || 0n;
+        totals.set(participant, prev + amount);
+        if (success) {
+            successEvents++;
+        } else {
+            failedEvents++;
         }
-
-        console.log(`已处理区块 ${from} - ${to}，累计事件 ${totalEvents}`);
     }
+
+    console.log(`已处理区块 ${FROM_BLOCK} - ${toBlock}，累计事件 ${totalEvents}`);
 
     const sqlStatements = [];
     for (const [addr, amount] of totals.entries()) {
