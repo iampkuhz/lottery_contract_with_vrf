@@ -21,7 +21,7 @@ contract Deposit is Script {
         uint256 pk = vm.envUint("PRIVATE_KEY");
         address payable redPacketAddr = payable(vm.envAddress("RED_PACKET"));
         // 默认 0.001 ETH，可通过环境变量覆盖
-        uint256 amount = vm.envOr("DEPOSIT_AMOUNT", uint256(0.001 ether));
+        uint256 amount = vm.envOr("DEPOSIT_AMOUNT", uint256(0.1 ether));
 
         vm.startBroadcast(pk);
         (bool success, ) = redPacketAddr.call{value: amount}("");

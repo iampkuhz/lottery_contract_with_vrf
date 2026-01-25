@@ -14,17 +14,6 @@ remappings = [
 ]
 fs_permissions = [
     { access = "read", path = "data" },
-    { access = "write", path = "data" },
-    { access = "read", path = "./data" },
-    { access = "write", path = "./data" },
-    # Allow absolute directory to cover all data files
-    { access = "read", path = "/Users/xiangbin/Documents/ui/lottery/lottery_contract_with_vrf/data" },
-    { access = "write", path = "/Users/xiangbin/Documents/ui/lottery/lottery_contract_with_vrf/data" },
-    # Allow relative project root to handle alternate resolution
-    { access = "read", path = "." },
-    # Fallback: allow entire filesystem for this workspace run
-    { access = "read", path = "/" },
-    { access = "write", path = "/" }
 ]
 
 # 中文注释：这里可以按需配置 RPC、Etherscan 等
