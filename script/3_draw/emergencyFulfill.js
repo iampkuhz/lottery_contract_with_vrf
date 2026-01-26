@@ -33,9 +33,6 @@ async function main () {
   const rpcUrl = process.env.RPC_URL;
   const privateKey = process.env.PRIVATE_KEY;
   const redPacketAddress = process.env.RED_PACKET;
-  const randomWord = process.env.RANDOM_WORD
-    ? BigInt(process.env.RANDOM_WORD)
-    : BigInt(Math.floor(Date.now() / 1000)); // 默认使用当前时间戳
 
   // 验证必需的环境变量
   if (!rpcUrl) {
@@ -68,6 +65,32 @@ async function main () {
     console.log('✓ 抽奖进行中:', drawInProgress);
     if (!drawInProgress) {
       throw new Error('未进行中的抽奖，无法执行紧急回调');
+    }
+
+    // 生成随机数：支持环境变量覆盖，或者结合多个因素生成伪随机数
+    let randomWord;
+    if (process.env.RANDOM_WORD) {
+      randomWord = BigInt(process.env.RANDOM_WORD);
+      console.log('✓ 使用指定的随机数');
+    } else {
+      // 结合多个因素生成伪随机数：时间戳 + 区块号 + 合约地址 + 签名者地址
+      const blockNumber = await provider.getBlockNumber();
+      const timestamp = Math.floor(Date.now() / 1000);
+
+      // 构造数据：时间戳 + 区块号 + 地址信息
+      const data = ethers.AbiCoder.defaultAbiCoder().encode(
+        ['uint256', 'uint256', 'address', 'address'],
+        [timestamp, blockNumber, redPacketAddress, signer.address]
+      );
+
+      // 使用 keccak256 哈希生成伪随机数
+      const hash = ethers.keccak256(data);
+      randomWord = BigInt(hash);
+
+      console.log('✓ 随机数生成方式: keccak256(timestamp + blockNumber + addresses)');
+      console.log('  - 时间戳:', timestamp);
+      console.log('  - 区块号:', blockNumber);
+      console.log('  - 哈希值:', hash);
     }
 
     console.log('✓ 随机数值:', randomWord.toString());

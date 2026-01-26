@@ -192,13 +192,53 @@ cast call $RED_PACKET "drawInProgress()(bool)" --rpc-url $RPC_URL
 cast call $RED_PACKET "getParticipantAddressMapping()(uint256[],address[])" --rpc-url $RPC_URL
 ```
 
+### 🔴 紧急提现（重点）
+
+**Solidity：**
+
+```solidity
+redPacket.emergencyWithdraw(toAddress, withdrawAmount);
+```
+
+**Cast：**
+
+```bash
+cast send $RED_PACKET "emergencyWithdraw(address,uint256)" 0x... 1000000000000000000 \
+  --private-key $PRIVATE_KEY --rpc-url $RPC_URL
+```
+
+---
+
+### 🔴 紧急回调随机数（重点）
+
+当 Chainlink VRF 回调失败或延迟时，管理员可使用此接口手动填充随机数并继续分配流程。
+
+**Solidity：**
+
+```solidity
+uint256[] memory randomWords = new uint256[](1);
+randomWords[0] = 999888;  // 任意随机数
+redPacket.emergencyFulfillRandomWords(randomWords);
+```
+
+**Cast：**
+
+```bash
+cast send $RED_PACKET "emergencyFulfillRandomWords(uint256[])" [999888] \
+  --private-key $PRIVATE_KEY --rpc-url $RPC_URL
+```
+
+---
+
 ## 关键接口速览
 
 - 参与者批量录入：`setParticipantsBatch(uint256[] employeeIds, address[] participants)`
 - 发起抽奖请求：`requestDraw()`
 - 预估 VRF 费用：`getRequestPriceNative()`
+- VRF 回调入口：`rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords)`
+- 🔴 **紧急回调随机数**：`emergencyFulfillRandomWords(uint256[] memory randomWords)`
 - 管理员触发分配：`distribute()`
-- 管理员紧急提现：`emergencyWithdraw(address to, uint256 amount)`
+- 🔴 管理员紧急提现：`emergencyWithdraw(address to, uint256 amount)`
 
 ## 注意事项
 
