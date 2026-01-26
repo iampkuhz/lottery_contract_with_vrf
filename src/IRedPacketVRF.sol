@@ -145,8 +145,6 @@ interface IRedPacketVRF {
     function requestDraw() external payable returns (uint256 requestId);
     // VRF 回调入口
     function rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords) external;
-    // 紧急回调随机数（用于 VRF 失败时手动填充）
-    function emergencyFulfillRandomWords(uint256[] memory randomWords) external;
     // 管理员触发分配
     function distribute() external;
 
