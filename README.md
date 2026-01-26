@@ -91,7 +91,7 @@ forge script script/0_deploy_contract/Deploy.s.sol --rpc-url $RPC_URL --broadcas
 推荐执行下面脚本，在 etherscan 上完成合约验证，方便后续查看合约状态：
 
 ```bash
-forge verify-contract --show-standard-json-input CONTRACT_ADDRESS src/RedPacketVRF.sol:RedPacketVRF > ~/Downloads/verify-input.json
+forge verify-contract --show-standard-json-input $RED_PACKET src/RedPacketVRF.sol:RedPacketVRF > ~/Downloads/verify-input.json
 # 然后访问 Etherscan -> Verify & Publish -> Standard JSON Input，上传该文件
 ```
 

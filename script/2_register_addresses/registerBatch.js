@@ -15,6 +15,7 @@
  *   BATCH_SIZE - 每批录入数量（可选，默认 100）
  *   CSV_PATH - CSV 文件路径（可选，默认 data/participants.csv）
  *   FORCE_SUBMIT - 遇到错误是否跳过（可选，1=跳过 0=中止，默认 0）
+ *   EOA_CHECK - 是否校验地址为 EOA（可选，1=校验 0=跳过，默认 1）
  *
  * CSV 格式：
  *   id,user_id,user_name,user_avatar,wallet_address,wallet_type,created_at,updated_at,lottery_entered,lottery_status,lottery_balance,message
@@ -44,6 +45,7 @@ async function main () {
   const batchSize = parseInt(process.env.BATCH_SIZE || '100', 10);
   const csvPath = process.env.CSV_PATH || 'data/participants.csv';
   const forceSubmit = process.env.FORCE_SUBMIT === '1';
+  const enableEoaCheck = process.env.EOA_CHECK !== '0';
 
   // 验证必需的环境变量
   if (!rpcUrl) {
@@ -61,6 +63,7 @@ async function main () {
   console.log('  红包合约:', redPacketAddress);
   console.log('  批次大小:', batchSize);
   console.log('  强制提交:', forceSubmit ? '是' : '否');
+  console.log('  校验 EOA:', enableEoaCheck ? '是' : '否');
 
   // 创建 provider 和 wallet
   const provider = new ethers.JsonRpcProvider(rpcUrl);
@@ -130,16 +133,17 @@ async function main () {
         throw new Error(`第 ${i + 2} 行数据无效: wallet_address 不是有效地址`);
       }
     }
-
-    // 验证不是合约地址（EOA 检查）
-    const code = await provider.getCode(walletAddress);
-    if (code !== '0x') {
-      if (forceSubmit) {
-        skipped++;
-        console.log(`  跳过第 ${i + 2} 行: wallet_address 是合约地址，仅允许 EOA`);
-        continue;
-      } else {
-        throw new Error(`第 ${i + 2} 行数据无效: wallet_address 是合约地址，仅允许 EOA`);
+    // 可选：验证不是合约地址（EOA 检查）
+    if (enableEoaCheck) {
+      const code = await provider.getCode(walletAddress);
+      if (code !== '0x') {
+        if (forceSubmit) {
+          skipped++;
+          console.log(`  跳过第 ${i + 2} 行: wallet_address 是合约地址，仅允许 EOA`);
+          continue;
+        } else {
+          throw new Error(`第 ${i + 2} 行数据无效: wallet_address 是合约地址，仅允许 EOA`);
+        }
       }
     }
 

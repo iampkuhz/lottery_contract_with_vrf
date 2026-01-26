@@ -261,4 +261,74 @@ contract RedPacketVRFTest is Test {
         redPacket.rawFulfillRandomWords(requestId, words);
         emit log_named_uint("gas.rawFulfillRandomWords()", gasBefore - gasleft());
     }
+
+    function testEmergencyFulfillRandomWords() public {
+        // 录入 3 名参与者
+        uint256[] memory ids = new uint256[](3);
+        address[] memory addrs = new address[](3);
+        ids[0] = 401; addrs[0] = user1;
+        ids[1] = 402; addrs[1] = user2;
+        ids[2] = 403; addrs[2] = user3;
+        vm.prank(admin);
+        redPacket.setParticipantsBatch(ids, addrs);
+
+        // 充值 2 ETH
+        vm.deal(address(this), 2 ether);
+        (bool ok, ) = address(redPacket).call{value: 2 ether}("");
+        assertTrue(ok);
+
+        // 发起抽奖
+        vm.prank(admin);
+        uint256 requestId = redPacket.requestDraw();
+        assertTrue(redPacket.drawInProgress());
+
+        // 使用紧急回调填充随机数
+        uint256[] memory randomWords = new uint256[](1);
+        randomWords[0] = 999888;
+        vm.prank(admin);
+        redPacket.emergencyFulfillRandomWords(randomWords);
+
+        // 验证随机数已设置
+        assertTrue(redPacket.randomReady());
+        assertEq(redPacket.lastRandomWord(), 999888);
+
+        // 分配奖励
+        vm.prank(admin);
+        redPacket.distribute();
+        assertFalse(redPacket.drawInProgress());
+        assertEq(address(redPacket).balance, 0);
+    }
+
+    function testEmergencyFulfillRandomWordsOnlyAdmin() public {
+        // 录入参与者
+        uint256[] memory ids = new uint256[](1);
+        address[] memory addrs = new address[](1);
+        ids[0] = 501; addrs[0] = user1;
+        vm.prank(admin);
+        redPacket.setParticipantsBatch(ids, addrs);
+
+        // 充值并发起抽奖
+        vm.deal(address(this), 1 ether);
+        (bool ok, ) = address(redPacket).call{value: 1 ether}("");
+        assertTrue(ok);
+
+        vm.prank(admin);
+        redPacket.requestDraw();
+
+        // 非管理员尝试调用紧急回调，应失败
+        uint256[] memory randomWords = new uint256[](1);
+        randomWords[0] = 555;
+        vm.prank(user1);
+        vm.expectRevert(bytes("OnlyAdmin"));
+        redPacket.emergencyFulfillRandomWords(randomWords);
+    }
+
+    function testEmergencyFulfillRandomWordsWithoutDraw() public {
+        // 未发起抽奖直接调用紧急回调，应失败
+        uint256[] memory randomWords = new uint256[](1);
+        randomWords[0] = 666;
+        vm.prank(admin);
+        vm.expectRevert(bytes("NoDraw"));
+        redPacket.emergencyFulfillRandomWords(randomWords);
+    }
 }
