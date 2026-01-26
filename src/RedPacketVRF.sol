@@ -255,11 +255,4 @@ contract RedPacketVRF is IRedPacketVRF, VRFV2PlusWrapperConsumerBase {
         require(ok, "WithdrawFailed");
         emit EmergencyWithdraw(to, amount);
     }
-
-    function emergencyFulfillRandomWords(uint256[] memory randomWords)
-        external
-        onlyAdmin()
-    {
-        fulfillRandomWords(lastRequestId,randomWords);
-    }
 }

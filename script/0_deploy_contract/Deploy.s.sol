@@ -16,7 +16,6 @@ import "../../src/RedPacketVRF.sol";
  *   RPC_URL
  *   PRIVATE_KEY
  *   VRF_WRAPPER
- *   ETHERSCAN_API_KEY（可选，用于自动验证合约）
  */
 contract Deploy is Script {
     function run() external returns (RedPacketVRF deployed) {
@@ -26,9 +25,5 @@ contract Deploy is Script {
         vm.startBroadcast(pk);
         deployed = new RedPacketVRF(vrfWrapper);
         vm.stopBroadcast();
-
-        // 部署完成后，输出合约地址供后续使用
-        console.log("Deployed RedPacketVRF at:", address(deployed));
-        console.log("VRF Wrapper:", vrfWrapper);
     }
 }
