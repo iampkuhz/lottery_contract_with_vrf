@@ -3,6 +3,7 @@
 > 说明：本文档与代码注释均为中文，便于团队理解与维护。
 
 ## 功能与约束
+
 - 任意地址可向合约充值 ETH 作为奖池。
 - 管理员批量录入参与者：`user_id -> wallet_address` 映射（仅允许 EOA，合约地址会被拒绝）。
 - 管理员可随时发起 `requestDraw()`；一旦请求发起，参与者列表即封存（`drawInProgress == true`），需完成本轮分配后才允许修改。
@@ -11,11 +12,13 @@
 - 每位参与者都会触发 `Allocation` 事件（包含 `amount` 与 `success`）；转账失败的金额留在合约中，可由管理员后续处理。
 
 ## 关键常量与状态
+
 - VRF 固定参数：`requestConfirmations=3`、`callbackGasLimit=70000`、`numWords=1`、`useNativePayment=true`。
 - 分配参数：`minTopBps=500`（头奖最小占比 5%）、`weightBits=16`。
 - 抽奖状态：`drawInProgress`、`randomReady`、`lastRequestId`、`lastRandomWord`。
 
 ## 项目结构
+
 - `src/RedPacketVRF.sol`：主合约
 - `src/IRedPacketVRF.sol`：接口与事件
 - `script/0_deploy_contract/Deploy.s.sol`：部署脚本
@@ -29,6 +32,7 @@
 - `test/RedPacketVRF.t.sol`：Foundry 测试
 
 ## 环境变量（.env）
+
 > 建议从 `.env.example` 复制后修改。
 
 ```bash
@@ -62,6 +66,7 @@ FROM_BLOCK=0
 ```
 
 ## CSV 格式与映射
+
 - csv 文件从云端下载后放在本地读取，用于 RegisterBatch 脚本使用
 - 样例文件：`data/participants.sample.csv`
 - 默认读取：`data/participants.csv`
@@ -72,30 +77,49 @@ FROM_BLOCK=0
   - `participant = wallet_address`
 
 ## 使用流程（脚本）
+
 > 所有脚本示例均默认：`set -a; source .env; set +a`
 
 ### 1) 部署合约
+
 ```bash
 forge script script/0_deploy_contract/Deploy.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY
 ```
 
-部署完成后，将合约地址写入 `.env` 文件，并重新加载环境变量
+部署完成后，将合约地址写入 `.env` 文件的 `RED_PACKET` 变量，并重新加载环境变量。
 
 推荐执行下面脚本，在 etherscan 上完成合约验证，方便后续查看合约状态：
 
 ```bash
-forge verify-contract --show-standard-json-input 0x0000000000000000000000000000000000000000 src/RedPacketVRF.sol:RedPacketVRF > ~/Downloads/tmp.json
+forge verify-contract --show-standard-json-input CONTRACT_ADDRESS src/RedPacketVRF.sol:RedPacketVRF > ~/Downloads/verify-input.json
+# 然后访问 Etherscan -> Verify & Publish -> Standard JSON Input，上传该文件
 ```
 
-### 2) 批量录入参与者（CSV）
+### 2) 添加管理员（可选）
+
+如需添加其他管理员账户来执行抽奖、录入参与者等操作，可以批量添加：
+
+```bash
+# 在 .env 中配置 NEW_ADMINS（逗号分隔的地址列表）
+NEW_ADMINS=0x1234...,0x5678...,0xabcd...
+
+# 执行批量添加管理员
+forge script script/0_deploy_contract/AddAdmin.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY
+```
+
+**注意**：添加管理员需要使用部署合约的 owner 账户的私钥。
+
+### 3) 批量录入参与者（CSV）
 
 先从服务端将用户注册好的 `participants.csv` 文件放到项目的对应路径，然后执行 script脚本：
 
 ```bash
 time forge script script/2_register_addresses/RegisterBatch.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY
 ```
+
 - 若 `BATCH_SIZE=0`，会自动估算批次大小，请加 `--ffi`。
 - 若仅需生成 `cast send` 命令（不发送交易）：
+
 ```bash
 forge script script/2_register_addresses/GenerateCastRegisterCommands.s.sol
 ```
@@ -104,7 +128,8 @@ forge script script/2_register_addresses/GenerateCastRegisterCommands.s.sol
 
 回到后台系统，执行 `Verify Contract Data` 按钮，会读取链上的地址状态，并更新数据库的状态为 `Address Registered`
 
-### 3) 充值奖池
+### 4) 充值奖池
+
 可以执行 cast 命令充值，也可以执行 forge 脚本:
 
 ```bash
@@ -117,18 +142,21 @@ forge script script/1_deposit_eth/Deposit.s.sol --rpc-url $RPC_URL --broadcast -
 
 中间有多次充值时，可以多次执行。每次执行完成后，需要回后台系统，输入 交易hash、工号、姓名，让后台系统维护每个注资人的信息，在首页展示
 
-### 4) 发起抽奖请求（VRF）
+### 5) 发起抽奖请求（VRF）
+
 ```bash
 forge script script/3_draw/RequestDraw.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY --ffi
 ```
+
 - 脚本会查询 gas price 并估算 VRF 费用，超过 `MAX_VRF_FEE_WEI` 会中止。
-- 一般来说，发起后1min，就会回调填充 随机数。可以查询 etherscan 网页看到随机数是否已经写回到合约 
+- 一般来说，发起后1min，就会回调填充 随机数。可以查询 etherscan 网页看到随机数是否已经写回到合约
 - 在执行 `RequestDraw` 之前，可以查询当前要支付的 vrf 费用:
+
 ```bash
 forge script script/3_draw/_QuoteVrfFee.s.sol --fork-url $RPC_URL --ffi
 ```
 
-### 5) VRF 回调完成后触发分配
+### 6) VRF 回调完成后触发分配
 
 确认 随机数 已经写回到合约后，执行 `Distribute()` 函数，计算每个用户的红包金额并直接完成转账：
 
@@ -137,7 +165,6 @@ forge script script/3_draw/Distribute.s.sol --rpc-url $RPC_URL --broadcast --pri
 ```
 
 如果部分地址转账失败（比如不允许接受原生代币的合约地址），金额留在合约中
-
 
 ## 导出 Allocation 事件并生成 SQL
 
@@ -153,6 +180,7 @@ node script/4_export_to_1d/queryAllocations.js
 > 这个脚本并不会更新后台 `Winner List` 中关联的合约地址，注意要手动更新后台
 
 ## 常用查询命令（cast）
+
 ```bash
 # 查询随机数是否就绪
 cast call $RED_PACKET "randomReady()(bool)" --rpc-url $RPC_URL
@@ -165,6 +193,7 @@ cast call $RED_PACKET "getParticipantAddressMapping()(uint256[],address[])" --rp
 ```
 
 ## 关键接口速览
+
 - 参与者批量录入：`setParticipantsBatch(uint256[] employeeIds, address[] participants)`
 - 发起抽奖请求：`requestDraw()`
 - 预估 VRF 费用：`getRequestPriceNative()`
@@ -172,6 +201,7 @@ cast call $RED_PACKET "getParticipantAddressMapping()(uint256[],address[])" --rp
 - 管理员紧急提现：`emergencyWithdraw(address to, uint256 amount)`
 
 ## 注意事项
+
 - 参与者录入时会拒绝合约地址，仅允许 EOA（`code.length == 0`）。
 - 发起 `requestDraw()` 后参与者列表不可修改，需完成分配后再进行变更。
 - 抽奖前确保合约已充值，且参与者列表不为空。
