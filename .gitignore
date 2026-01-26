@@ -5,6 +5,7 @@ broadcast/
 
 # Dependencies
 lib/
+node_modules/
 
 # IDE
 .idea/
@@ -15,6 +16,14 @@ lib/
 
 # Env
 .env
+
+# Temporary files
+*.log
+*.tmp
+.deploy-info.json
+generateTestData.js
+distributeHighGas.js
+replaceDistribute.js
 
 # Data
 data/participants.csv
