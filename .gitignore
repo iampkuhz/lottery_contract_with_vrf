@@ -19,3 +19,6 @@ lib/
 # Data
 data/participants.csv
 data/id_address.test.csv
+data/update_balances.sql
+/tmp.*
+/data/update_allocations.sql

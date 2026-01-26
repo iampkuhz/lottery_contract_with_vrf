@@ -4,11 +4,12 @@ pragma solidity ^0.8.24;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../src/RedPacketVRF.sol";
+import "../src/interfaces/IVRFV2PlusWrapper.sol";
 
 /*
  * ============================================================
  * 测试流程说明
- * 1) 部署 VRF mock 与红包合约，配置管理员
+ * 1) 部署 VRF Wrapper mock 与红包合约，配置管理员
  * 2) 录入参与者（含批量与逐条）
  * 3) 充值奖池并发起抽奖
  * 4) VRF 回调触发分配
@@ -16,18 +17,32 @@ import "../src/RedPacketVRF.sol";
  * ============================================================
  */
 
-/// @dev 简化版 VRF Mock，仅用于本地测试
-contract VRFCoordinatorV2Mock {
+/// @dev 简化版 VRF Wrapper Mock，仅用于本地测试
+contract VRFV2PlusWrapperMock is IVRFV2PlusWrapper {
     uint256 public nextRequestId = 1;
+    uint256 public override lastRequestId;
+    uint256 public requestPriceNative = 0;
 
-    function requestRandomWords(
-        bytes32,
-        uint64,
+    function calculateRequestPrice(uint32, uint32) external pure override returns (uint256) {
+        return 0;
+    }
+
+    function calculateRequestPriceNative(uint32, uint32) external view override returns (uint256) {
+        return requestPriceNative;
+    }
+
+    function requestRandomWordsInNative(
+        uint32,
         uint16,
         uint32,
-        uint32
-    ) external returns (uint256 requestId) {
-        requestId = nextRequestId++;
+        bytes calldata
+    ) external payable override returns (uint256 requestId) {
+        lastRequestId = nextRequestId++;
+        requestId = lastRequestId;
+    }
+
+    function link() external pure override returns (address) {
+        return address(1);
     }
 
     function fulfillRandomWords(uint256 requestId, address payable consumer, uint256 randomWord) external {
@@ -46,7 +61,7 @@ contract RevertingReceiver {
 
 contract RedPacketVRFTest is Test {
     RedPacketVRF internal redPacket;
-    VRFCoordinatorV2Mock internal coordinator;
+    VRFV2PlusWrapperMock internal wrapper;
 
     address internal admin = address(0xA11CE);
     address internal user1 = address(0xB0B01);
@@ -72,8 +87,8 @@ contract RedPacketVRFTest is Test {
     }
 
     function setUp() public {
-        coordinator = new VRFCoordinatorV2Mock();
-        redPacket = new RedPacketVRF(address(coordinator), bytes32("key"), 1);
+        wrapper = new VRFV2PlusWrapperMock();
+        redPacket = new RedPacketVRF(address(wrapper));
 
         // owner 默认是部署者
         redPacket.addAdmin(admin);
@@ -106,7 +121,7 @@ contract RedPacketVRFTest is Test {
         assertTrue(redPacket.drawInProgress());
 
         gasBefore = gasleft();
-        coordinator.fulfillRandomWords(requestId, payable(address(redPacket)), 123456);
+        wrapper.fulfillRandomWords(requestId, payable(address(redPacket)), 123456);
         emit log_named_uint("gas.fulfillRandomWords()", gasBefore - gasleft());
 
         gasBefore = gasleft();
@@ -137,17 +152,30 @@ contract RedPacketVRFTest is Test {
             if (batchSize > 30) {
                 batchSize = 30;
             }
-            uint256[] memory ids = new uint256[](batchSize);
-            address[] memory addrs = new address[](batchSize);
+            uint256[] memory batchIds = new uint256[](batchSize);
+            address[] memory batchAddrs = new address[](batchSize);
             for (uint256 j = 0; j < batchSize; j++) {
-                ids[j] = 1000 + i + j;
-                addrs[j] = address(uint160(0x1000 + i + j));
+                batchIds[j] = 1000 + i + j;
+                batchAddrs[j] = address(uint160(0x1000 + i + j));
             }
 
             uint256 gasBeforeLoop = gasleft();
             vm.prank(admin);
-            redPacket.setParticipantsBatch(ids, addrs);
+            redPacket.setParticipantsBatch(batchIds, batchAddrs);
             emit log_named_uint("gas.setParticipantsBatch(30)", gasBeforeLoop - gasleft());
+        }
+
+        (uint256[] memory ids, address[] memory addrs) = redPacket.getParticipantAddressMapping();
+        assertEq(ids.length, 200);
+        assertEq(addrs.length, 200);
+        bool[] memory seen = new bool[](200);
+        for (uint256 i = 0; i < ids.length; i++) {
+            uint256 employeeId = ids[i];
+            assertGe(employeeId, 1000);
+            assertLt(employeeId, 1200);
+            assertFalse(seen[employeeId - 1000]);
+            seen[employeeId - 1000] = true;
+            assertEq(addrs[i], address(uint160(0x1000 + (employeeId - 1000))));
         }
 
         // 充值 0.1 ETH
@@ -164,7 +192,7 @@ contract RedPacketVRFTest is Test {
         emit log_named_uint("gas.requestDraw()", gasBefore - gasleft());
 
         gasBefore = gasleft();
-        coordinator.fulfillRandomWords(requestId, payable(address(redPacket)), 20260117);
+        wrapper.fulfillRandomWords(requestId, payable(address(redPacket)), 20260117);
         emit log_named_uint("gas.fulfillRandomWords()", gasBefore - gasleft());
 
         gasBefore = gasleft();
@@ -206,5 +234,31 @@ contract RedPacketVRFTest is Test {
         }
         assertGe(maxAmount, 0.005 ether);
         assertEq(sumAmount, 0.1 ether);
+    }
+
+    function testGasRawFulfillRandomWords() public {
+        // 录入 1 名参与者
+        uint256[] memory ids = new uint256[](1);
+        address[] memory addrs = new address[](1);
+        ids[0] = 301;
+        addrs[0] = user1;
+        vm.prank(admin);
+        redPacket.setParticipantsBatch(ids, addrs);
+
+        // 充值 0.01 ETH
+        vm.deal(address(this), 0.01 ether);
+        (bool ok, ) = address(redPacket).call{value: 0.01 ether}("");
+        assertTrue(ok);
+
+        // 发起抽奖，获得 requestId
+        vm.prank(admin);
+        uint256 requestId = redPacket.requestDraw();
+
+        uint256[] memory words = new uint256[](1);
+        words[0] = 777;
+        uint256 gasBefore = gasleft();
+        vm.prank(address(wrapper));
+        redPacket.rawFulfillRandomWords(requestId, words);
+        emit log_named_uint("gas.rawFulfillRandomWords()", gasBefore - gasleft());
     }
 }

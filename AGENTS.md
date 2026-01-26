@@ -12,3 +12,4 @@
 
 ## Docs and tests
 - 任何测试流程变更，需要同步更新 `README.md` 的“测试流程说明”章节。
+- 任何 `.env` 配置变更，需要同步更新 `.env.example`。

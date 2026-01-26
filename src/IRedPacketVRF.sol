@@ -54,11 +54,6 @@ interface IRedPacketVRF {
      */
     // 单个参与者分配结果事件
     event Allocation(address indexed participant, uint256 amount, bool success);
-    // 转账失败记录待领取事件
-    event PendingClaim(address indexed participant, uint256 amount);
-    // 领取待领取金额事件
-    event Claimed(address indexed participant, uint256 amount);
-
     // 只读状态
 
     /*
@@ -75,31 +70,25 @@ interface IRedPacketVRF {
 
     /*
      * ============================================================
-     * 只读状态 - VRF 配置
+     * 只读状态 - VRF 与抽奖状态
      * ============================================================
      */
-    // 当前 VRF Coordinator 地址
-    function vrfCoordinator() external view returns (address);
-    // 当前 VRF keyHash
-    function keyHash() external view returns (bytes32);
-    // 当前 VRF 订阅 ID
-    function subId() external view returns (uint64);
+    // 当前 VRF Wrapper 地址
+    function vrfWrapper() external view returns (address);
     // VRF 请求确认数
     function requestConfirmations() external view returns (uint16);
     // VRF 回调 gas 上限
     function callbackGasLimit() external view returns (uint32);
     // VRF 随机词数量
     function numWords() external view returns (uint32);
+    // VRF 是否使用原生币支付
+    function useNativePayment() external view returns (bool);
+    // VRF 预估请求费用（原生币）
+    function getRequestPriceNative() external view returns (uint256);
     // 头奖最小占比（bps）
     function minTopBps() external view returns (uint16);
     // 权重取值位数
     function weightBits() external view returns (uint16);
-
-    /*
-     * ============================================================
-     * 只读状态 - 抽奖状态
-     * ============================================================
-     */
     // 是否处于抽奖中
     function drawInProgress() external view returns (bool);
     // 随机数是否已就绪
@@ -111,11 +100,13 @@ interface IRedPacketVRF {
 
     /*
      * ============================================================
-     * 只读状态 - 兜底金额
+     * 只读状态 - 分配结果与兜底金额
      * ============================================================
      */
-    // 参与者待领取金额
-    function pendingClaims(address participant) external view returns (uint256);
+    // 获取参与者工号列表
+    function getParticipantIds() external view returns (uint256[] memory);
+    // 获取参与者工号与地址映射
+    function getParticipantAddressMapping() external view returns (uint256[] memory ids, address[] memory addrs);
 
     // 外部接口
     // 直接转账充值入口
@@ -144,8 +135,6 @@ interface IRedPacketVRF {
     function setParticipantsBatch(uint256[] calldata employeeIds, address[] calldata participants) external;
     // 移除参与者
     function removeParticipant(uint256 employeeId) external;
-    // 获取参与者工号列表
-    function getParticipantIds() external view returns (uint256[] memory);
 
     /*
      * ============================================================
@@ -153,17 +142,10 @@ interface IRedPacketVRF {
      * ============================================================
      */
     // 发起抽奖请求
-    function requestDraw() external returns (uint256 requestId);
+    function requestDraw() external payable returns (uint256 requestId);
     // VRF 回调入口
     function rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords) external;
     // 管理员触发分配
     function distribute() external;
 
-    /*
-     * ============================================================
-     * 外部接口 - 兜底领取
-     * ============================================================
-     */
-    // 领取待领取金额
-    function claimPending() external;
 }
