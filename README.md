@@ -200,7 +200,7 @@ cast send $RED_PACKET "emergencyWithdraw(address,uint256)" 0x... 100000000000000
 **Cast：**
 
 ```bash
-cast send $RED_PACKET "emergencyFulfillRandomWords(uint256[])" [999888] \
+cast send $RED_PACKET "emergencyFulfillRandomWords(uint256[])" [60801541957652452589404125260738941560733807405265932156657372197269294534207] \
   --private-key $PRIVATE_KEY --rpc-url $RPC_URL
 ```
 
