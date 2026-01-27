@@ -84,10 +84,25 @@ forge script script/0_deploy_contract/Deploy.s.sol --rpc-url $RPC_URL --broadcas
 推荐执行下面脚本，在 etherscan 上完成合约验证，方便后续查看合约状态：
 
 ```bash
-forge verify-contract --show-standard-json-input 0x0000000000000000000000000000000000000000 src/RedPacketVRF.sol:RedPacketVRF > ~/Downloads/tmp.json
+forge verify-contract --show-standard-json-input $RED_PACKET src/RedPacketVRF.sol:RedPacketVRF > ~/Downloads/verify-input.json
+# 然后访问 Etherscan -> Verify & Publish -> Standard JSON Input，上传该文件
 ```
 
-### 2) 批量录入参与者（CSV）
+### 2) 添加管理员（可选）
+
+如需添加其他管理员账户来执行抽奖、录入参与者等操作，可以批量添加：
+
+```bash
+# 在 .env 中配置 NEW_ADMINS（逗号分隔的地址列表）
+NEW_ADMINS=0x1234...,0x5678...,0xabcd...
+
+# 执行批量添加管理员
+forge script script/0_deploy_contract/AddAdmin.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY
+```
+
+**注意**：添加管理员需要使用部署合约的 owner 账户的私钥。
+
+### 3) 批量录入参与者（CSV）
 
 先从服务端将用户注册好的 `participants.csv` 文件放到项目的对应路径，然后执行 script脚本：
 
@@ -104,7 +119,8 @@ forge script script/2_register_addresses/GenerateCastRegisterCommands.s.sol
 
 回到后台系统，执行 `Verify Contract Data` 按钮，会读取链上的地址状态，并更新数据库的状态为 `Address Registered`
 
-### 3) 充值奖池
+### 4) 充值奖池
+
 可以执行 cast 命令充值，也可以执行 forge 脚本:
 
 ```bash
@@ -117,18 +133,20 @@ forge script script/1_deposit_eth/Deposit.s.sol --rpc-url $RPC_URL --broadcast -
 
 中间有多次充值时，可以多次执行。每次执行完成后，需要回后台系统，输入 交易hash、工号、姓名，让后台系统维护每个注资人的信息，在首页展示
 
-### 4) 发起抽奖请求（VRF）
+### 5) 发起抽奖请求（VRF）
+
 ```bash
 forge script script/3_draw/RequestDraw.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY --ffi
 ```
+
 - 脚本会查询 gas price 并估算 VRF 费用，超过 `MAX_VRF_FEE_WEI` 会中止。
-- 一般来说，发起后1min，就会回调填充 随机数。可以查询 etherscan 网页看到随机数是否已经写回到合约 
+- 一般来说，发起后1min，就会回调填充 随机数。可以查询 etherscan 网页看到随机数是否已经写回到合约
 - 在执行 `RequestDraw` 之前，可以查询当前要支付的 vrf 费用:
 ```bash
 forge script script/3_draw/_QuoteVrfFee.s.sol --fork-url $RPC_URL --ffi
 ```
 
-### 5) VRF 回调完成后触发分配
+### 6) VRF 回调完成后触发分配
 
 确认 随机数 已经写回到合约后，执行 `Distribute()` 函数，计算每个用户的红包金额并直接完成转账：
 
@@ -164,12 +182,38 @@ cast call $RED_PACKET "drawInProgress()(bool)" --rpc-url $RPC_URL
 cast call $RED_PACKET "getParticipantAddressMapping()(uint256[],address[])" --rpc-url $RPC_URL
 ```
 
+### 🔴 紧急提现（重点）
+
+**Cast：**
+
+```bash
+cast send $RED_PACKET "emergencyWithdraw(address,uint256)" 0x... 1000000000000000000 \
+  --private-key $PRIVATE_KEY --rpc-url $RPC_URL
+```
+
+---
+
+### 🔴 紧急回调随机数（重点）
+
+当 Chainlink VRF 回调失败或延迟时，管理员可使用此接口手动填充随机数并继续分配流程。
+
+**Cast：**
+
+```bash
+cast send $RED_PACKET "emergencyFulfillRandomWords(uint256[])" [999888] \
+  --private-key $PRIVATE_KEY --rpc-url $RPC_URL
+```
+
+---
+
 ## 关键接口速览
 - 参与者批量录入：`setParticipantsBatch(uint256[] employeeIds, address[] participants)`
 - 发起抽奖请求：`requestDraw()`
 - 预估 VRF 费用：`getRequestPriceNative()`
+- VRF 回调入口：`rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords)`
+- 🔴 **紧急回调随机数**：`emergencyFulfillRandomWords(uint256[] memory randomWords)`
 - 管理员触发分配：`distribute()`
-- 管理员紧急提现：`emergencyWithdraw(address to, uint256 amount)`
+- 🔴 管理员紧急提现：`emergencyWithdraw(address to, uint256 amount)`
 
 ## 注意事项
 - 参与者录入时会拒绝合约地址，仅允许 EOA（`code.length == 0`）。
